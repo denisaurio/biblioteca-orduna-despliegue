@@ -287,6 +287,12 @@ td.mono { font-variant-numeric: tabular-nums; color: var(--muted); }
 /* ---- Topbar: campana y menú ---- */
 .campana { position: relative; }
 .campana-num { position: absolute; top: -6px; right: -6px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 9px; background: var(--red-text); color: #fff; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+/* Punto de estado del canal SSE (tiempo real). */
+.realtime-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); opacity: .45; flex: none; }
+.realtime-dot.conectado { background: #1f9d55; opacity: 1; box-shadow: 0 0 0 3px rgba(31,157,85,.14); }
+.realtime-dot.conectando, .realtime-dot.reconectando { background: #d97706; opacity: 1; animation: latir-tiempo-real 1.2s ease-in-out infinite; }
+.realtime-dot.desconectado { background: var(--red-text); opacity: .8; }
+@keyframes latir-tiempo-real { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(.65); opacity: .55; } }
 .topbar-user { position: relative; }
 .topbar-user .caret { font-size: 10px; color: var(--muted); }
 .user-menu { position: absolute; right: 0; top: 42px; min-width: 170px; padding: 6px; z-index: 30; display: flex; flex-direction: column; }

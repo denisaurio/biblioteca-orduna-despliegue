@@ -17,7 +17,7 @@ import {
   urlImagenComprobante,
 } from '../../api/comprobantesApi.js';
 import { buscarLibros } from '../../api/librosApi.js';
-import { useApi, useAccion, useDebounce } from '../../hooks.js';
+import { useApi, useAccion, useDebounce, useRefrescoTiempoReal } from '../../hooks.js';
 import Modal from '../../components/common/Modal.jsx';
 import Campo from '../../components/common/Campo.jsx';
 import Estado from '../../components/common/Estado.jsx';
@@ -37,6 +37,7 @@ function LibrosVirtuales() {
   const [cambios, setCambios] = useState(false);
   const { ejecutar, enviando } = useAccion();
   const { datos: pendientes, cargando, recargar } = useApi(() => listarPedidos('PENDIENTE_PAGO'), [], []);
+  useRefrescoTiempoReal(['accesos-virtuales', 'comprobantes', 'cajas'], recargar);
 
   /** El cliente muestra su codigo en el mostrador: con el se encuentra la orden. */
   const buscar = async () => {
@@ -243,6 +244,7 @@ function FormCambiar({ orden, onGuardar }) {
  */
 function ComprobantesYape() {
   const { datos: comprobantes, cargando, recargar } = useApi(() => listarComprobantesPendientes(), [], []);
+  useRefrescoTiempoReal(['comprobantes', 'accesos-virtuales'], recargar);
   const { ejecutar, enviando } = useAccion();
   const [denegando, setDenegando] = useState(null);
   const [motivo, setMotivo] = useState('');

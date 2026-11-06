@@ -6,7 +6,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { getLibros, buscarLibros, getLibroPorId } from '../../api/librosApi.js';
 import { crearReserva } from '../../api/reservasApi.js';
-import { useApi, useAccion, useDebounce } from '../../hooks.js';
+import { useApi, useAccion, useDebounce, useRefrescoTiempoReal } from '../../hooks.js';
 import SearchInput from '../../components/common/SearchInput.jsx';
 import Estado from '../../components/common/Estado.jsx';
 import Portada from '../../components/common/Portada.jsx';
@@ -29,6 +29,7 @@ function Libros() {
   const [pedido, setPedido] = useState(null); // { libro, tipo } para pedir un libro virtual
 
   const { datos: libros, cargando, recargar } = useApi(() => (q.trim() ? buscarLibros(q.trim()) : getLibros()), [q], []);
+  useRefrescoTiempoReal(['libros', 'ejemplares', 'reservas'], recargar);
 
   // Si llega ?q= desde el buscador de arriba, actualiza la búsqueda.
   useEffect(() => { setBusqueda(params.get('q') || ''); }, [params]);

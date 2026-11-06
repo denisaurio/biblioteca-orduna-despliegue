@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { misLibrosVirtuales, urlPdf } from '../../api/accesosVirtualesApi.js';
-import { useApi, useAccion } from '../../hooks.js';
+import { useApi, useAccion, useRefrescoTiempoReal } from '../../hooks.js';
 import Estado from '../../components/common/Estado.jsx';
 import Portada from '../../components/common/Portada.jsx';
 import { Cargando, Vacio } from '../../components/common/Cargando.jsx';
@@ -15,6 +15,7 @@ import './MisLibrosVirtuales.css';
 export function ListaMisLibrosVirtuales({ compacta = false }) {
   const navegar = useNavigate();
   const { datos: accesos, cargando, recargar } = useApi(() => misLibrosVirtuales(), [], []);
+  useRefrescoTiempoReal(['accesos-virtuales', 'comprobantes'], recargar);
   const { ejecutar, enviando } = useAccion();
   const [mensaje, setMensaje] = useState('');
 

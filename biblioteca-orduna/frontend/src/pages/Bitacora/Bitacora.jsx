@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { getTurnos, getTurnoActual, abrirTurno, cerrarTurno } from '../../api/bitacoraApi.js';
-import { useApi, useAccion } from '../../hooks.js';
+import { useApi, useAccion, useRefrescoTiempoReal } from '../../hooks.js';
 import Estado from '../../components/common/Estado.jsx';
 import Modal from '../../components/common/Modal.jsx';
 import Campo from '../../components/common/Campo.jsx';
@@ -18,6 +18,10 @@ function Bitacora() {
   const [cerrar, setCerrar] = useState(false);
   const { datos: turnos, cargando, recargar } = useApi(() => getTurnos({ desde, hasta, tipo: tipo || undefined }), [desde, hasta, tipo], []);
   const { datos: actual, recargar: recargarActual } = useApi(() => getTurnoActual(), [], null);
+  useRefrescoTiempoReal(['turnos'], () => {
+    recargar({ silencioso: true });
+    recargarActual({ silencioso: true });
+  });
   const { ejecutar, enviando } = useAccion();
 
   const abrir = async () => {

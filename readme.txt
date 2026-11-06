@@ -847,6 +847,29 @@ Todos los demas endpoints de listado devuelven el arreglo completo, sin paginar.
       - mensajeError() traduce el error del backend a un texto: primero intenta
         el mapa "errores" (campo: mensaje) y si no, el campo "mensaje".
 
+12.3.1 TIEMPO REAL (SSE)
+    El navegador abre UNA conexion larga por pestaña a:
+        GET /api/eventos?token=<JWT>
+    Es Server-Sent Events (parte de Spring MVC, sin dependencias nuevas).
+    La ruta es publica en SecurityConfig porque EventSource no puede mandar la
+    cabecera Authorization; el JWT va en ?token= y RealtimeController lo valida.
+
+    El backend empuja tres tipos de evento:
+      conectado     confirma el canal (id y rol del usuario).
+      cambio        cualquier POST/PUT/PATCH/DELETE de la API que termino 2xx.
+                    Lo emite RealtimeMutationFilter con el recurso de la ruta
+                    (/api/reservas/5/cancelar -> "reservas"). No lleva datos:
+                    el frontend recarga las pantallas suscritas a ese recurso.
+                    Se excluyen auth, eventos y notificaciones.
+      notificacion  aviso nuevo o cambio de leidos. Lo emite NotificacionService
+                    y va SOLO al usuario destinatario, despues del commit.
+
+    El servidor manda un latido cada 25 segundos para que Traefik/Nginx no
+    corte la conexion. En el frontend, RealtimeContext abre el EventSource y
+    useRefrescoTiempoReal(recursos, recargar) recarga cada pantalla afectada;
+    la campanita del Topbar se actualiza al instante. El punto de color junto a
+    la campana indica el estado del canal (verde = conectado).
+
 12.4 RUTAS
     /login, /registro                          publicas
     /inicio, /libros, /autores, /prestamos,

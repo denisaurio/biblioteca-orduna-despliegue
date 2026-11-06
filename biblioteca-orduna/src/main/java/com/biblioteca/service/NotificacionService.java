@@ -7,6 +7,7 @@ import com.biblioteca.repository.MultaRepository;
 import com.biblioteca.repository.NotificacionRepository;
 import com.biblioteca.repository.PrestamoRepository;
 import com.biblioteca.repository.UsuarioRepository;
+import com.biblioteca.realtime.RealtimeService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,11 +40,12 @@ public class NotificacionService {
     private final ConfiguracionService configuracionService;
     private final UsuarioService usuarioService;
     private final AuditoriaService auditoriaService;
+    private final RealtimeService realtimeService;
 
     public NotificacionService(NotificacionRepository notificacionRepository, PrestamoRepository prestamoRepository,
                                MultaRepository multaRepository, UsuarioRepository usuarioRepository,
                                ConfiguracionService configuracionService, UsuarioService usuarioService,
-                               AuditoriaService auditoriaService) {
+                               AuditoriaService auditoriaService, RealtimeService realtimeService) {
         this.notificacionRepository = notificacionRepository;
         this.prestamoRepository = prestamoRepository;
         this.multaRepository = multaRepository;
@@ -51,6 +53,7 @@ public class NotificacionService {
         this.configuracionService = configuracionService;
         this.usuarioService = usuarioService;
         this.auditoriaService = auditoriaService;
+        this.realtimeService = realtimeService;
     }
 
     /**
@@ -183,6 +186,7 @@ public class NotificacionService {
                 .filter(x -> x.getUsuario().getId().equals(idUsuario))
                 .orElseThrow(() -> new RecursoNoEncontradoException("No existe la notificación " + idNotificacion));
         marcar(n);
+        realtimeService.publicarNotificacionesActualizadas(idUsuario);
         return aDTO(n, false);
     }
 
@@ -192,6 +196,7 @@ public class NotificacionService {
         List<Notificacion> pendientes =
                 notificacionRepository.findByUsuarioIdAndLeidaFalseOrderByFechaCreacionDescIdDesc(idUsuario);
         pendientes.forEach(NotificacionService::marcar);
+        realtimeService.publicarNotificacionesActualizadas(idUsuario);
         return pendientes.size();
     }
 
@@ -222,7 +227,12 @@ public class NotificacionService {
         n.setFechaCreacion(LocalDateTime.now());
         n.setLeida(false);
         n.setCreadoPor(creador);
-        return notificacionRepository.save(n);
+        Notificacion guardada = notificacionRepository.save(n);
+        // Al navegador del destinatario le llega la campanita al instante (SSE),
+        // después del commit para no anunciar algo que luego se revierta.
+        realtimeService.publicarNotificacion(u.getId(), guardada.getId(), tipo.name(),
+                mensaje, idRef, guardada.getFechaCreacion());
+        return guardada;
     }
 
     private boolean crearSiNoExiste(Usuario u, TipoNotificacion tipo, Long idRef, LocalDateTime desde, String mensaje) {

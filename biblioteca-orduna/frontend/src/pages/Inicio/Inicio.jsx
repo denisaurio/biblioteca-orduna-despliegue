@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { getDashboard, getPanel } from '../../api/miCuentaApi.js';
-import { useApi } from '../../hooks.js';
+import { useApi, useRefrescoTiempoReal } from '../../hooks.js';
 import StatCard from '../../components/common/StatCard.jsx';
 import Estado from '../../components/common/Estado.jsx';
 import Portada from '../../components/common/Portada.jsx';
@@ -18,7 +18,9 @@ function Inicio() {
   const { usuario, esLector } = useAuth();
   const navigate = useNavigate();
   const [busqueda, setBusqueda] = useState('');
-  const { datos, cargando } = useApi(() => (esLector ? getPanel() : getDashboard()), [esLector]);
+  const { datos, cargando, recargar } = useApi(() => (esLector ? getPanel() : getDashboard()), [esLector]);
+  // El panel son cifras del día: cualquier cambio en la biblioteca puede moverlas.
+  useRefrescoTiempoReal(['*'], recargar);
 
   const primerNombre = usuario?.nombre?.split(' ')[0];
   const buscar = (e) => {

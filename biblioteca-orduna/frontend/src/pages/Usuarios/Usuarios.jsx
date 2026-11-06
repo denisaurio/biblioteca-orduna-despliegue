@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { getUsuarios, crearUsuario, actualizarUsuario } from '../../api/usuariosApi.js';
 import { getSancionesDeUsuario } from '../../api/sancionesApi.js';
-import { useApi, useAccion, useDebounce } from '../../hooks.js';
+import { useApi, useAccion, useDebounce, useRefrescoTiempoReal } from '../../hooks.js';
 import SearchInput from '../../components/common/SearchInput.jsx';
 import Paginacion from '../../components/common/Paginacion.jsx';
 import Estado from '../../components/common/Estado.jsx';
@@ -31,6 +31,7 @@ function Usuarios() {
     () => getUsuarios({ q, rol: rol || undefined, pagina, tamanio: TAMANIO }),
     [q, rol, pagina]
   );
+  useRefrescoTiempoReal(['usuarios', 'sanciones'], recargar);
   const lista = datos?.contenido || [];
 
   return (

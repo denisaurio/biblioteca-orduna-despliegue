@@ -8,7 +8,7 @@ import {
 } from '../../api/notificacionesApi.js';
 import { getConfiguracion, actualizarConfiguracion } from '../../api/configuracionApi.js';
 import { getUsuarios } from '../../api/usuariosApi.js';
-import { useApi, useAccion, useDebounce } from '../../hooks.js';
+import { useApi, useAccion, useDebounce, useRefrescoTiempoReal } from '../../hooks.js';
 import Modal from '../../components/common/Modal.jsx';
 import Campo from '../../components/common/Campo.jsx';
 import Paginacion from '../../components/common/Paginacion.jsx';
@@ -50,7 +50,8 @@ function Avisos() {
 }
 
 function MisAvisos() {
-  const { datos: avisos, setDatos, cargando } = useApi(() => getMisNotificaciones(), [], []);
+  const { datos: avisos, setDatos, cargando, recargar } = useApi(() => getMisNotificaciones(), [], []);
+  useRefrescoTiempoReal(['notificaciones'], recargar);
   const { ejecutar } = useAccion();
 
   const leer = async (a) => {
@@ -100,7 +101,8 @@ function ItemAviso({ aviso, onClick, conDestinatario }) {
 function TodosLosAvisos({ version }) {
   const [tipo, setTipo] = useState('');
   const [pagina, setPagina] = useState(0);
-  const { datos, cargando } = useApi(() => getTodosLosAvisos({ tipo: tipo || undefined, pagina, tamanio: 15 }), [tipo, pagina, version]);
+  const { datos, cargando, recargar } = useApi(() => getTodosLosAvisos({ tipo: tipo || undefined, pagina, tamanio: 15 }), [tipo, pagina, version]);
+  useRefrescoTiempoReal(['notificaciones'], recargar);
 
   return (
     <div className="card" style={{ padding: 8 }}>
@@ -122,7 +124,8 @@ function TodosLosAvisos({ version }) {
 }
 
 function ConfigAvisos({ esGerente }) {
-  const { datos: config, setDatos, cargando } = useApi(() => getConfiguracion(), []);
+  const { datos: config, setDatos, cargando, recargar } = useApi(() => getConfiguracion(), []);
+  useRefrescoTiempoReal(['configuracion', 'notificaciones'], recargar);
   const { ejecutar, enviando } = useAccion();
 
   const cambiar = async (campo) => {

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { getAutores, crearAutor, actualizarAutor, eliminarAutor, getLibrosDeAutor } from '../../api/autoresApi.js';
-import { useApi, useAccion } from '../../hooks.js';
+import { useApi, useAccion, useRefrescoTiempoReal } from '../../hooks.js';
 import SearchInput from '../../components/common/SearchInput.jsx';
 import Modal from '../../components/common/Modal.jsx';
 import Campo from '../../components/common/Campo.jsx';
@@ -18,6 +18,7 @@ function Autores() {
   const [form, setForm] = useState(null);       // null | 'nuevo' | autor
   const [verLibros, setVerLibros] = useState(null);
   const { datos: autores, cargando, recargar } = useApi(() => getAutores(), [], []);
+  useRefrescoTiempoReal(['autores', 'libros'], recargar);
 
   const filtrados = autores.filter((a) =>
     `${a.nombre} ${a.nacionalidad || ''}`.toLowerCase().includes(busqueda.toLowerCase())

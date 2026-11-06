@@ -7,7 +7,7 @@ import { useState } from 'react';
 import { getPrestamos } from '../../api/prestamosApi.js';
 import { registrarDevolucion } from '../../api/devolucionesApi.js';
 import { getCajaActual } from '../../api/cajaApi.js';
-import { useApi, useAccion, useDebounce } from '../../hooks.js';
+import { useApi, useAccion, useDebounce, useRefrescoTiempoReal } from '../../hooks.js';
 import SearchInput from '../../components/common/SearchInput.jsx';
 import Estado from '../../components/common/Estado.jsx';
 import Modal from '../../components/common/Modal.jsx';
@@ -26,6 +26,10 @@ function Devoluciones() {
   const q = useDebounce(busqueda);
   const { datos: prestamos, cargando, recargar } = useApi(() => getPrestamos(filtro, q), [filtro, q], []);
   const { datos: vencidos, recargar: recargarVencidos } = useApi(() => getPrestamos('VENCIDOS'), [], []);
+  useRefrescoTiempoReal(['prestamos', 'devoluciones', 'multas'], () => {
+    recargar({ silencioso: true });
+    recargarVencidos({ silencioso: true });
+  });
 
   return (
     <div>

@@ -25,6 +25,7 @@ biblioteca-orduna/
 │   ├── controller/    Endpoints REST (HTTP puro, sin lógica)
 │   ├── dto/           Records Java de entrada/salida
 │   ├── security/      JWT, filtro, matriz de permisos
+│   ├── realtime/      SSE: canal /api/eventos, eventos "cambio" y "notificacion"
 │   ├── exception/     Excepciones tipadas de negocio
 │   ├── web/           Manejador global de errores
 │   ├── tarea/         @Scheduled (3 tareas)
@@ -33,7 +34,7 @@ biblioteca-orduna/
 └── frontend/          SPA React 18 + Vite
     └── src/
         ├── api/       Un módulo por recurso, una función por endpoint
-        ├── context/   AuthContext, ToastContext
+        ├── context/   AuthContext, RealtimeContext (SSE), ToastContext
         ├── routes/    AppRoutes, ProtectedRoute
         ├── components/ common/ (reutilizables, incl. EscanerCodigo y QrYape) + layout/ (armazón)
         ├── pages/     26 pantallas en 19 carpetas (23 enrutadas)

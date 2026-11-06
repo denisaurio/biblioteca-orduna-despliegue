@@ -15,11 +15,13 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.io.IOException;
 
 /**
  * Convierte las excepciones en respuestas JSON (ErrorResponse) con el código HTTP correcto.
@@ -155,6 +157,22 @@ public class GlobalExceptionHandler {
                 ? "No se pudo guardar el archivo en el almacenamiento. Intente nuevamente"
                 : ex.getMessage();
         return responder(HttpStatus.INTERNAL_SERVER_ERROR, mensaje, req);
+    }
+
+    /**
+     * El navegador cerró una conexión larga (por ejemplo el canal SSE al cambiar de
+     * pestaña o al recargar). Ya no hay a quién responder: se ignora sin registrarlo
+     * como error y sin intentar escribir una respuesta que también fallaría.
+     */
+    @ExceptionHandler(AsyncRequestNotUsableException.class)
+    public void clienteDesconectado(AsyncRequestNotUsableException ex) {
+        log.debug("El cliente cerró la conexión antes de terminar la respuesta: {}", ex.getMessage());
+    }
+
+    /** El socket se cortó al escribir un evento SSE (latido) a un navegador que ya se fue. */
+    @ExceptionHandler(IOException.class)
+    public void conexionInterrumpida(IOException ex) {
+        log.debug("Se interrumpió la conexión con el cliente: {}", ex.getMessage());
     }
 
     @ExceptionHandler(Exception.class)

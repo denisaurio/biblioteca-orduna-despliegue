@@ -301,6 +301,30 @@ Métodos: `EFECTIVO, TARJETA, TRANSFERENCIA, YAPE, PLIN, OTRO`. Acepta **pago pa
 Tipos: `VENCIMIENTO_PROXIMO, PRESTAMO_VENCIDO, RESERVA_DISPONIBLE, RESERVA_VENCIDA, MULTA_PENDIENTE, NUEVO_LIBRO, ACCESO_VIRTUAL, COMPROBANTE_YAPE, PAGO_RECHAZADO, ADMINISTRATIVO`.
 Los interruptores de "Configuración de avisos" están en `PUT /api/configuracion` (`aviso_vencimiento`, `aviso_reserva`, `aviso_multa`, `aviso_nuevo_libro`).
 
+### Actualizaciones en tiempo real (SSE)
+
+| Método | Ruta | Quién |
+|---|---|---|
+| GET | `/api/eventos?token=<JWT>` | 👤 (el token se valida dentro del controlador) |
+
+Es un canal **Server-Sent Events** (una conexión larga por pestaña), sin dependencias nuevas.
+La ruta es pública en `SecurityConfig` porque `EventSource` no puede enviar la cabecera
+`Authorization`; el JWT viaja en `?token=` y se valida en `RealtimeController`.
+
+Eventos que manda el backend (JSON en el campo `data`):
+
+| `tipo` | Cuándo | A quién |
+|---|---|---|
+| `conectado` | al abrir el canal | al navegador que se suscribe |
+| `cambio` | cualquier `POST/PUT/PATCH/DELETE` de la API que terminó 2xx (`RealtimeMutationFilter`) | a todos |
+| `notificacion` | aviso nuevo o cambio de leídos (`NotificacionService`) | solo al usuario destinatario |
+
+`cambio` no lleva datos: indica el `recurso` (`/api/reservas/5/cancelar` → `reservas`) y el
+frontend recarga las pantallas afectadas. El filtro excluye `auth`, `eventos` y
+`notificaciones`. Los eventos de notificación se emiten **después del commit** de la
+transacción (`TransactionSynchronization`). El servidor manda un latido cada 25 s para que
+proxies como Traefik/Nginx no corten la conexión.
+
 ### Bitácora de turnos (RF16)
 | Método | Ruta | Quién |
 |---|---|---|

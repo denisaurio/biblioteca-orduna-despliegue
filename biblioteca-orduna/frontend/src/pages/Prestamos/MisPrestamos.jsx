@@ -1,6 +1,6 @@
 // Interfaz "Mis préstamos y multas" del lector: GET /api/mi/prestamos y /api/mi/multas.
 import { getMisPrestamos, getMisMultas } from '../../api/miCuentaApi.js';
-import { useApi } from '../../hooks.js';
+import { useApi, useRefrescoTiempoReal } from '../../hooks.js';
 import Estado from '../../components/common/Estado.jsx';
 import StatCard from '../../components/common/StatCard.jsx';
 import { FilaEstado } from '../../components/common/Cargando.jsx';
@@ -8,8 +8,12 @@ import { estadoMulta, estadoPrestamo } from '../../utils/estados.js';
 import { fmtFecha, fmtSoles } from '../../utils/formato.js';
 
 function MisPrestamos() {
-  const { datos: prestamos, cargando } = useApi(() => getMisPrestamos(), [], []);
-  const { datos: multas, cargando: cargandoM } = useApi(() => getMisMultas(), [], []);
+  const { datos: prestamos, cargando, recargar: recargarPrestamos } = useApi(() => getMisPrestamos(), [], []);
+  const { datos: multas, cargando: cargandoM, recargar: recargarMultas } = useApi(() => getMisMultas(), [], []);
+  useRefrescoTiempoReal(['prestamos', 'multas'], () => {
+    recargarPrestamos({ silencioso: true });
+    recargarMultas({ silencioso: true });
+  });
 
   const activos = prestamos.filter((p) => p.estado !== 'DEVUELTO');
   const deuda = multas.reduce((s, m) => s + Number(m.saldo), 0);

@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 import { getConfiguracion, actualizarConfiguracion, getHistorialConfiguracion } from '../../api/configuracionApi.js';
 import { getEstadoAlmacenamiento, probarEscrituraAlmacenamiento, prepararAlmacenamiento } from '../../api/almacenamientoApi.js';
-import { useApi, useAccion } from '../../hooks.js';
+import { useApi, useAccion, useRefrescoTiempoReal } from '../../hooks.js';
 import { Cargando } from '../../components/common/Cargando.jsx';
 import Badge from '../../components/common/Badge.jsx';
 import { fmtFechaHora, fmtSoles } from '../../utils/formato.js';
@@ -15,6 +15,9 @@ function Configuracion() {
   const [form, setForm] = useState(null);
   const { datos, cargando } = useApi(() => getConfiguracion(), []);
   const { datos: historial, recargar: recargarHistorial } = useApi(() => getHistorialConfiguracion(), [], []);
+  // Si otro gerente cambia la configuración, se refresca el historial (no el formulario,
+  // para no borrar lo que este usuario esté escribiendo).
+  useRefrescoTiempoReal(['configuracion'], () => { recargarHistorial({ silencioso: true }); });
   const { ejecutar, enviando } = useAccion();
 
   useEffect(() => {

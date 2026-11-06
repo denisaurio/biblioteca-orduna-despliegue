@@ -37,6 +37,7 @@ export function AuthProvider({ children }) {
   const rol = usuario?.rol;
   const valor = {
     usuario,
+    token: sesion?.token || null,
     login,
     logout,
     actualizarNombre,

@@ -6,7 +6,7 @@
 import { useState } from 'react';
 import { getAuditoria } from '../../api/auditoriaApi.js';
 import { getUsuarios } from '../../api/usuariosApi.js';
-import { useApi } from '../../hooks.js';
+import { useApi, useRefrescoTiempoReal } from '../../hooks.js';
 import Estado from '../../components/common/Estado.jsx';
 import Paginacion from '../../components/common/Paginacion.jsx';
 import { FilaEstado } from '../../components/common/Cargando.jsx';
@@ -23,7 +23,7 @@ function Auditoria() {
   const [accion, setAccion] = useState('');
   const [pagina, setPagina] = useState(0);
 
-  const { datos, cargando } = useApi(
+  const { datos, cargando, recargar } = useApi(
     () => getAuditoria({
       desde: desde || undefined,
       hasta: hasta || undefined,
@@ -34,6 +34,7 @@ function Auditoria() {
     }),
     [desde, hasta, idUsuario, accion, pagina]
   );
+  useRefrescoTiempoReal(['*'], recargar);
 
   const lista = datos?.contenido || [];
   const acciones = Object.keys(tipoAccionAuditoria);

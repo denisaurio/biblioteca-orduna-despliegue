@@ -2,7 +2,7 @@
 // estado Activa / Finalizada. La sanción finaliza sola al cumplirse la fecha o al levantarla.
 import { useState } from 'react';
 import { getSanciones, levantarSancion } from '../../api/sancionesApi.js';
-import { useApi, useAccion } from '../../hooks.js';
+import { useApi, useAccion, useRefrescoTiempoReal } from '../../hooks.js';
 import SearchInput from '../../components/common/SearchInput.jsx';
 import Estado from '../../components/common/Estado.jsx';
 import { FilaEstado } from '../../components/common/Cargando.jsx';
@@ -15,6 +15,7 @@ function Sanciones() {
   const [busqueda, setBusqueda] = useState('');
   const [nueva, setNueva] = useState(false);
   const { datos: sanciones, cargando, recargar } = useApi(() => getSanciones(soloActivas), [soloActivas], []);
+  useRefrescoTiempoReal(['sanciones', 'usuarios', 'prestamos'], recargar);
   const { ejecutar } = useAccion();
 
   const lista = sanciones.filter((s) => `${s.nombre_usuario} ${s.dni_usuario} ${s.motivo}`.toLowerCase().includes(busqueda.toLowerCase()));

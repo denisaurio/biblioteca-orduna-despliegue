@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { getEjemplares, crearEjemplar, actualizarEjemplar } from '../../api/ejemplaresApi.js';
 import { getLibros } from '../../api/librosApi.js';
-import { useApi, useAccion, useDebounce } from '../../hooks.js';
+import { useApi, useAccion, useDebounce, useRefrescoTiempoReal } from '../../hooks.js';
 import SearchInput from '../../components/common/SearchInput.jsx';
 import Estado from '../../components/common/Estado.jsx';
 import Modal from '../../components/common/Modal.jsx';
@@ -25,6 +25,7 @@ function Ejemplares() {
   const [libroInicial, setLibroInicial] = useState(null);
   const q = useDebounce(busqueda);
   const { datos: ejemplares, cargando, recargar } = useApi(() => getEjemplares({ q, estado: estado || undefined }), [q, estado], []);
+  useRefrescoTiempoReal(['ejemplares', 'libros', 'prestamos', 'reservas'], recargar);
 
   // Desde la ficha de un libro se llega aquí con ?libro=ID: se abre el alta de una copia de ese libro.
   const libroParam = params.get('libro');

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { getReservas, getColaLibro, cancelarReserva, crearReservaMostrador } from '../../api/reservasApi.js';
 import { getUsuarios } from '../../api/usuariosApi.js';
 import { getLibros, buscarLibros } from '../../api/librosApi.js';
-import { useApi, useAccion, useDebounce } from '../../hooks.js';
+import { useApi, useAccion, useDebounce, useRefrescoTiempoReal } from '../../hooks.js';
 import Modal from '../../components/common/Modal.jsx';
 import SearchInput from '../../components/common/SearchInput.jsx';
 import Estado from '../../components/common/Estado.jsx';
@@ -21,6 +21,7 @@ function Reservas() {
   const [libroCola, setLibroCola] = useState(null);
   const [nueva, setNueva] = useState(false);
   const { datos: reservas, cargando, recargar } = useApi(() => getReservas(), [], []);
+  useRefrescoTiempoReal(['reservas', 'prestamos', 'devoluciones', 'libros'], recargar);
   const { ejecutar } = useAccion();
 
   const filtradas = reservas

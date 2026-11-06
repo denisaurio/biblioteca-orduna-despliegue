@@ -29,8 +29,12 @@ Si el backend corre en otra dirección, cambia `VITE_API_URL` en el archivo `.en
   `mensajeError()` muestra el `mensaje` / `errores` que manda el `GlobalExceptionHandler`.
 - `src/context/AuthContext.jsx` — login real con `POST /api/auth/login`; guarda token y rol
   ("Recordar sesión" = `localStorage`, si no `sessionStorage`).
+- `src/context/RealtimeContext.jsx` — abre `GET /api/eventos?token=...` (SSE) y reparte los
+  eventos. `useRefrescoTiempoReal(recursos, recargar)` en `hooks.js` recarga cada pantalla
+  cuando cambia algo que le afecta, y la campanita se actualiza con los eventos de aviso.
 - `src/api/*.js` — una función por endpoint del backend.
-- `src/hooks.js` — `useApi` (cargar datos) y `useAccion` (guardar con mensaje de éxito/error).
+- `src/hooks.js` — `useApi` (cargar datos), `useAccion` (guardar con mensaje de éxito/error)
+  y `useRefrescoTiempoReal` (recarga automática por SSE).
 
 ## Pantallas y endpoints
 
@@ -186,12 +190,12 @@ src/
 ├── components/
 │   ├── common/     Badge, Estado, Modal, Campo, Paginacion, Portada, StatCard, SearchInput, Cargando, EscanerCodigo, QrYape
 │   └── layout/     AppLayout, Sidebar (menú por rol), Topbar (buscador, campanita, usuario)
-├── context/        AuthContext (sesión JWT), ToastContext (mensajes)
+├── context/        AuthContext (sesión JWT), RealtimeContext (SSE), ToastContext (mensajes)
 ├── pages/          una carpeta por pantalla
 ├── routes/         rutas y protección por rol
 ├── styles/         global.css (colores y tipografía del Figma)
 ├── utils/          formatos (fechas, soles), estados → colores, sesión
-└── hooks.js        useApi, useAccion, useDebounce
+└── hooks.js        useApi, useAccion, useDebounce, useRefrescoTiempoReal
 ```
 
 ## Producción

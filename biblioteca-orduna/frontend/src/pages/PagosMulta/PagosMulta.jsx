@@ -2,7 +2,7 @@
 // con "+ Registrar pago". Acepta pagos parciales; el bibliotecario que cobra sale del JWT.
 import { useState } from 'react';
 import { getMultas, pagarMulta, getPagos } from '../../api/pagosMultaApi.js';
-import { useApi, useAccion } from '../../hooks.js';
+import { useApi, useAccion, useRefrescoTiempoReal } from '../../hooks.js';
 import SearchInput from '../../components/common/SearchInput.jsx';
 import Estado from '../../components/common/Estado.jsx';
 import Modal from '../../components/common/Modal.jsx';
@@ -42,7 +42,8 @@ function PagosMulta() {
 }
 
 function TablaMultas({ filtro, busqueda, onPagar, version }) {
-  const { datos: multas, cargando } = useApi(() => getMultas(filtro), [filtro, version === null], []);
+  const { datos: multas, cargando, recargar } = useApi(() => getMultas(filtro), [filtro, version === null], []);
+  useRefrescoTiempoReal(['multas', 'pagos', 'devoluciones', 'cajas'], recargar);
   const lista = multas.filter((m) => `${m.nombre_lector} ${m.dni_lector}`.toLowerCase().includes(busqueda.toLowerCase()));
 
   return (
@@ -73,7 +74,8 @@ function TablaMultas({ filtro, busqueda, onPagar, version }) {
 function HistorialPagos({ busqueda }) {
   const [desde, setDesde] = useState(inicioMesISO());
   const [hasta, setHasta] = useState(hoyISO());
-  const { datos: pagos, cargando } = useApi(() => getPagos(desde, hasta), [desde, hasta], []);
+  const { datos: pagos, cargando, recargar } = useApi(() => getPagos(desde, hasta), [desde, hasta], []);
+  useRefrescoTiempoReal(['multas', 'pagos', 'cajas'], recargar);
   const lista = pagos.filter((p) => p.nombre_lector.toLowerCase().includes(busqueda.toLowerCase()));
   const total = lista.reduce((s, p) => s + Number(p.monto_pagado), 0);
 

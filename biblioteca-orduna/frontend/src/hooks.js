@@ -1,26 +1,31 @@
-// Hook para cargar datos de la API con estado de carga y recarga manual.
-import { useCallback, useEffect, useState } from 'react';
+// Hooks para cargar datos de la API, ejecutar acciones y refrescar en tiempo real.
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { mensajeError } from './api/axiosClient.js';
 import { useToast } from './context/ToastContext.jsx';
+import { recursosAfectados, useRealtime } from './context/RealtimeContext.jsx';
 
 /**
  * const { datos, cargando, recargar } = useApi(() => getLibros(), [dependencias]);
  * Muestra un toast si la petición falla.
+ *
+ * recargar({ silencioso: true }) vuelve a pedir los datos sin mostrar el cargando:
+ * lo usa el refresco automático para no parpadear la pantalla.
  */
 export function useApi(funcion, deps = [], inicial = null) {
   const toast = useToast();
   const [datos, setDatos] = useState(inicial);
   const [cargando, setCargando] = useState(true);
 
-  const recargar = useCallback(async () => {
-    setCargando(true);
+  const recargar = useCallback(async (opciones) => {
+    const silencioso = opciones?.silencioso === true;
+    if (!silencioso) setCargando(true);
     try {
       const res = await funcion();
       setDatos(res.status === 204 ? null : res.data);
     } catch (e) {
-      toast.error(mensajeError(e));
+      if (!silencioso) toast.error(mensajeError(e));
     } finally {
-      setCargando(false);
+      if (!silencioso) setCargando(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
@@ -30,6 +35,41 @@ export function useApi(funcion, deps = [], inicial = null) {
   }, [recargar]);
 
   return { datos, setDatos, cargando, recargar };
+}
+
+/**
+ * Recarga la pantalla cuando otro usuario (o el backend) cambia algo que le afecta.
+ *
+ *   useRefrescoTiempoReal(['prestamos', 'multas'], recargar)
+ *
+ * Los eventos llegan por SSE. El recurso del evento se compara con los pedidos y
+ * con los recursos que ese cambio arrastra (ver RECURSOS_AFECTADOS). Usa '*' para
+ * recargar con cualquier cambio (p. ej. el panel de Inicio).
+ */
+export function useRefrescoTiempoReal(recursos, recargar, opciones = {}) {
+  const { suscribir } = useRealtime();
+  const recargarRef = useRef(recargar);
+  recargarRef.current = recargar;
+
+  const lista = Array.isArray(recursos) ? recursos : [recursos];
+  const clave = lista.filter(Boolean).join('|');
+  const habilitado = opciones.habilitado !== false && !!suscribir;
+
+  useEffect(() => {
+    if (!habilitado || !clave) return undefined;
+    const suscritos = new Set(clave.split('|'));
+
+    return suscribir((evento) => {
+      const leToca =
+        evento.tipo === 'cambio'
+          ? [...suscritos].some((recurso) => recurso === '*' || recursosAfectados(evento.recurso).has(recurso))
+          : evento.tipo === 'notificacion'
+            ? suscritos.has('*') || suscritos.has('notificaciones')
+            : false;
+
+      if (leToca) recargarRef.current?.({ silencioso: true });
+    });
+  }, [clave, habilitado, suscribir]);
 }
 
 /** Ejecuta una acción (POST/PUT/...) con toasts de éxito/error. Devuelve la data o null si falló. */

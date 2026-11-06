@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { getMisReservas } from '../../api/miCuentaApi.js';
 import { crearReserva, cancelarReserva } from '../../api/reservasApi.js';
 import { buscarLibros, getLibros } from '../../api/librosApi.js';
-import { useApi, useAccion, useDebounce } from '../../hooks.js';
+import { useApi, useAccion, useDebounce, useRefrescoTiempoReal } from '../../hooks.js';
 import Estado from '../../components/common/Estado.jsx';
 import Modal from '../../components/common/Modal.jsx';
 import { FilaEstado, Cargando, Vacio } from '../../components/common/Cargando.jsx';
@@ -14,6 +14,7 @@ import { fmtFecha } from '../../utils/formato.js';
 function MisReservas() {
   const [nueva, setNueva] = useState(false);
   const { datos: reservas, cargando, recargar } = useApi(() => getMisReservas(), [], []);
+  useRefrescoTiempoReal(['reservas', 'libros', 'prestamos'], recargar);
   const { ejecutar } = useAccion();
 
   const cancelar = async (r) => {

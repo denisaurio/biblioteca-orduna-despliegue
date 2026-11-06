@@ -7,7 +7,7 @@ import { getUsuarios } from '../../api/usuariosApi.js';
 import { getLibros, buscarLibros } from '../../api/librosApi.js';
 import { crearPrestamo } from '../../api/prestamosApi.js';
 import { getConfiguracion } from '../../api/configuracionApi.js';
-import { useApi, useAccion, useDebounce } from '../../hooks.js';
+import { useApi, useAccion, useDebounce, useRefrescoTiempoReal } from '../../hooks.js';
 import Estado from '../../components/common/Estado.jsx';
 import { Cargando, Vacio } from '../../components/common/Cargando.jsx';
 import { estadoLibro, estadoUsuario } from '../../utils/estados.js';
@@ -28,11 +28,17 @@ function Prestamos() {
   const qL = useDebounce(buscaLibro);
   const { ejecutar, enviando } = useAccion();
 
-  const { datos: usuarios, cargando: cargandoU } = useApi(
+  const { datos: usuarios, cargando: cargandoU, recargar: recargarUsuarios } = useApi(
     () => getUsuarios({ q: qU, rol: 'LECTOR', tamanio: 6 }), [qU], { contenido: [] });
-  const { datos: libros, cargando: cargandoL } = useApi(
+  const { datos: libros, cargando: cargandoL, recargar: recargarLibros } = useApi(
     () => (qL.trim() ? buscarLibros(qL.trim()) : getLibros()), [qL], []);
   const { datos: config } = useApi(() => getConfiguracion(), [], null);
+
+  // Si otro bibliotecario presta o devuelve, cambian los libros disponibles y los lectores.
+  useRefrescoTiempoReal(['prestamos', 'devoluciones', 'reservas'], () => {
+    recargarUsuarios({ silencioso: true });
+    recargarLibros({ silencioso: true });
+  });
 
   const diasMax = config?.dias_max ?? 7;
   const fechaDevolucion = tipo === 'ABIERTO' ? 'Sin fecha (préstamo abierto)' : fmtFecha(hoyISO(diasMax));

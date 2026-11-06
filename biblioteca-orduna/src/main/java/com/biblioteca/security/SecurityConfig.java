@@ -26,7 +26,8 @@ import java.util.List;
  * permisos por rol. Toda la matriz de permisos está aquí, en un solo lugar.
  *
  * Matriz de permisos (roles del documento: LECTOR, BIBLIOTECARIO, GERENTE):
- *   Público .......................... GET /api/salud, el frontend compilado (todo GET fuera de
+ *   Público .......................... GET /api/salud, GET /api/eventos (SSE; el token se valida
+ *                                      dentro del controlador), el frontend compilado (todo GET fuera de
  *                                      /api/), login, registro de lector, GET catálogo (libros, autores,
  *                                      géneros), GET /api/configuracion (nombre/horario), el QR
  *                                      de Yape y las portadas servidas por el backend
@@ -79,6 +80,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/error").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/salud").permitAll()
+                        // Canal SSE: valida el JWT dentro del controlador porque EventSource no
+                        // puede enviar la cabecera Authorization (manda ?token=).
+                        .requestMatchers(HttpMethod.GET, "/api/eventos").permitAll()
                         // Frontend compilado (index.html, /assets/*, y rutas de React como /libros):
                         // todo GET que NO sea de la API es publico. La API sigue protegida abajo.
                         .requestMatchers((RequestMatcher) req -> HttpMethod.GET.matches(req.getMethod())

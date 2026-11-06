@@ -15,7 +15,7 @@ import {
   getCajaPendientes,
   getCajas,
 } from '../../api/cajaApi.js';
-import { useApi, useAccion } from '../../hooks.js';
+import { useApi, useAccion, useRefrescoTiempoReal } from '../../hooks.js';
 import Modal from '../../components/common/Modal.jsx';
 import Campo from '../../components/common/Campo.jsx';
 import Estado from '../../components/common/Estado.jsx';
@@ -35,6 +35,7 @@ import './Caja.css';
 function Caja() {
   const [pestana, setPestana] = useState('HOY');
   const { datos: resumen, cargando, recargar } = useApi(() => getCajaActual(), [], null);
+  useRefrescoTiempoReal(['cajas'], recargar);
 
   return (
     <div>
@@ -273,7 +274,8 @@ function TablaMovimientos({ movimientos }) {
 
 /** "Que libros faltan": prestamos sin devolver, reservas y pedidos sin cobrar. */
 function TabPendientes() {
-  const { datos, cargando } = useApi(() => getCajaPendientes(), [], null);
+  const { datos, cargando, recargar } = useApi(() => getCajaPendientes(), [], null);
+  useRefrescoTiempoReal(['cajas', 'accesos-virtuales', 'comprobantes'], recargar);
 
   if (cargando && !datos) return <Cargando />;
 
@@ -395,7 +397,8 @@ function TabPendientes() {
 function TabHistorial() {
   const [desde, setDesde] = useState(inicioMesISO());
   const [hasta, setHasta] = useState(hoyISO());
-  const { datos: cajas, cargando } = useApi(() => getCajas(desde, hasta), [desde, hasta], []);
+  const { datos: cajas, cargando, recargar } = useApi(() => getCajas(desde, hasta), [desde, hasta], []);
+  useRefrescoTiempoReal(['cajas'], recargar);
   const [detalle, setDetalle] = useState(null);
 
   return (

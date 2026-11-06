@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { getReporte, descargarCsv, generarCierre, getCierres } from '../../api/reportesApi.js';
 import { mensajeError } from '../../api/axiosClient.js';
 import { useToast } from '../../context/ToastContext.jsx';
-import { useApi, useAccion } from '../../hooks.js';
+import { useApi, useAccion, useRefrescoTiempoReal } from '../../hooks.js';
 import StatCard from '../../components/common/StatCard.jsx';
 import Estado from '../../components/common/Estado.jsx';
 import Modal from '../../components/common/Modal.jsx';
@@ -65,7 +65,8 @@ function Reportes() {
 }
 
 function Inventario() {
-  const { datos: r, cargando } = useApi(() => getReporte('inventario'), []);
+  const { datos: r, cargando, recargar } = useApi(() => getReporte('inventario'), []);
+  useRefrescoTiempoReal(['libros', 'ejemplares', 'prestamos', 'reservas'], recargar);
   if (cargando || !r) return <Cargando />;
   return (
     <>
@@ -114,7 +115,8 @@ function Ranking({ titulo, filas }) {
 }
 
 function ReportePrestamos({ desde, hasta }) {
-  const { datos: r, cargando } = useApi(() => getReporte('prestamos', { desde, hasta }), [desde, hasta]);
+  const { datos: r, cargando, recargar } = useApi(() => getReporte('prestamos', { desde, hasta }), [desde, hasta]);
+  useRefrescoTiempoReal(['prestamos', 'devoluciones'], recargar);
   if (cargando || !r) return <Cargando />;
   return (
     <>
@@ -153,7 +155,8 @@ function ReportePrestamos({ desde, hasta }) {
 }
 
 function ReporteMultas({ desde, hasta }) {
-  const { datos: r, cargando } = useApi(() => getReporte('multas', { desde, hasta }), [desde, hasta]);
+  const { datos: r, cargando, recargar } = useApi(() => getReporte('multas', { desde, hasta }), [desde, hasta]);
+  useRefrescoTiempoReal(['multas', 'pagos', 'devoluciones'], recargar);
   if (cargando || !r) return <Cargando />;
   return (
     <>
@@ -196,6 +199,7 @@ function ReporteMultas({ desde, hasta }) {
 function CierreDiario({ desde, hasta }) {
   const [generar, setGenerar] = useState(false);
   const { datos: cierres, cargando, recargar } = useApi(() => getCierres(desde, hasta), [desde, hasta], []);
+  useRefrescoTiempoReal(['cierre-diario', 'prestamos', 'cajas'], recargar);
   const hoy = cierres.find((c) => c.fecha === hoyISO());
 
   return (
