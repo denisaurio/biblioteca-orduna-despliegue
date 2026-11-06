@@ -143,7 +143,12 @@ Sin clave, Google Books reparte un cupo diario **por IP** y desde un VPS se agot
 | La cámara no abre | El sitio está en `http://` | Usa un dominio con `https://` (punto 3.5) |
 | `OutOfMemoryError` | VPS con poca RAM | En Coolify → Resource Limits, da al menos 768 MB a la app |
 
-## 7. Probar la imagen en tu PC antes de subirla (opcional)
+## 7. App para el celular (APK)
+
+Cuando el sistema ya esté con https, sigue [`APK-ANDROID.md`](./APK-ANDROID.md): se instala
+desde Chrome en 1 minuto o se genera el APK con PWABuilder.
+
+## 8. Probar la imagen en tu PC antes de subirla (opcional)
 
 Necesitas Docker Desktop:
 

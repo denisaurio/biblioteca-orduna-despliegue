@@ -516,8 +516,12 @@ puede asumir que existe:
 - **No hay Swagger/OpenAPI en el código** (no hay dependencia de springdoc),
   aunque el punto 7 de la sección 6 lo pida. Ningún controlador del proyecto
   usa `@Operation`/`@ApiResponse`.
-- **No hay aplicación móvil todavía** (regla 15): eso es lo último, cuando el
-  sistema web esté cerrado.
+- **App móvil**: la web es **instalable** (PWA: `frontend/public/manifest.json`,
+  iconos y `sw.js`, registrado en `main.jsx` solo en producción). Desde ella se
+  genera el **APK** con PWABuilder (Trusted Web Activity); ver
+  [`APK-ANDROID.md`](./APK-ANDROID.md). El service worker **nunca** cachea `/api/`:
+  no lo cambies, o el celular mostraría datos viejos o de otra sesión. La app
+  nativa en React Native (regla 15) sigue pendiente para el final.
 
 ---
 
