@@ -272,6 +272,7 @@ td.mono { font-variant-numeric: tabular-nums; color: var(--muted); }
 .toast { padding: 11px 15px; border-radius: 9px; font-size: 13px; box-shadow: var(--shadow); animation: aparecer .15s ease; }
 .toast.ok { background: var(--navy); color: #fff; }
 .toast.error { background: var(--red-text); color: #fff; }
+.toast.aviso { background: var(--amber-bg); color: var(--amber-text); border: 1px solid var(--amber-text); }
 
 /* ---- Estados de carga / vacío ---- */
 .estado-vacio, .celda-estado { padding: 28px 16px; text-align: center; color: var(--muted); font-size: 13px; }

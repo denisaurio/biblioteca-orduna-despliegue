@@ -9,12 +9,14 @@ export function ToastProvider({ children }) {
   const mostrar = useCallback((texto, tipo = 'ok') => {
     const id = Date.now() + Math.random();
     setToasts((t) => [...t, { id, texto, tipo }]);
-    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), tipo === 'error' ? 6000 : 3500);
+    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), tipo === 'ok' ? 3500 : 7000);
   }, []);
 
   const api = {
     ok: (texto) => mostrar(texto, 'ok'),
     error: (texto) => mostrar(texto, 'error'),
+    /** La operacion salio bien pero algo opcional no (ej. la portada de internet). */
+    aviso: (texto) => mostrar(texto, 'aviso'),
   };
 
   return (
@@ -23,7 +25,7 @@ export function ToastProvider({ children }) {
       <div className="toast-zone">
         {toasts.map((t) => (
           <div key={t.id} className={`toast ${t.tipo}`} role="status">
-            {t.tipo === 'error' ? '⚠ ' : '✓ '}{t.texto}
+            {t.tipo === 'ok' ? '✓ ' : '⚠ '}{t.texto}
           </div>
         ))}
       </div>

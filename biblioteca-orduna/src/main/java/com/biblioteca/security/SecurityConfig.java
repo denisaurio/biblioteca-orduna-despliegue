@@ -13,6 +13,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -25,17 +26,24 @@ import java.util.List;
  * permisos por rol. Toda la matriz de permisos está aquí, en un solo lugar.
  *
  * Matriz de permisos (roles del documento: LECTOR, BIBLIOTECARIO, GERENTE):
- *   Público .......................... login, registro de lector, GET catálogo (libros, autores,
- *                                      géneros) y GET /api/configuracion (nombre/horario)
+ *   Público .......................... GET /api/salud, el frontend compilado (todo GET fuera de
+ *                                      /api/), login, registro de lector, GET catálogo (libros, autores,
+ *                                      géneros), GET /api/configuracion (nombre/horario), el QR
+ *                                      de Yape y las portadas servidas por el backend
+ *                                      (GET /api/archivos/portadas/**, imágenes públicas)
  *   GERENTE .......................... PUT /api/configuracion, historial de configuración,
+ *                                      GET /api/auditoria/** (quién hizo qué),
  *                                      POST /api/notificaciones/generar
- *   LECTOR ........................... POST /api/reservas
+ *   LECTOR ........................... POST /api/reservas, POST /api/accesos-virtuales
  *   Cualquier usuario logueado ....... /api/mi/** (mis préstamos, multas, reservas, panel),
- *                                      /api/usuarios/me, mis notificaciones, cancelar mi reserva
+ *                                      /api/usuarios/me, mis notificaciones, cancelar mi reserva,
+ *                                      mis libros virtuales (leer, subir comprobante, cancelar)
  *   BIBLIOTECARIO o GERENTE .......... todo lo demás de gestión: catálogo (escritura), ejemplares,
  *                                      préstamos, devoluciones, multas, reservas (listado/cola),
  *                                      usuarios, sanciones, turnos, reportes, cierre diario,
- *                                      dashboard y crear avisos
+ *                                      dashboard, crear avisos, libros virtuales (escritura),
+ *                                      comprobantes de Yape (/api/comprobantes/**) y la caja
+ *                                      (/api/cajas/**)
  */
 @Configuration
 public class SecurityConfig {
@@ -70,18 +78,36 @@ public class SecurityConfig {
                         // ======== Público ========
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/error").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/salud").permitAll()
+                        // Frontend compilado (index.html, /assets/*, y rutas de React como /libros):
+                        // todo GET que NO sea de la API es publico. La API sigue protegida abajo.
+                        .requestMatchers((RequestMatcher) req -> HttpMethod.GET.matches(req.getMethod())
+                                && !req.getRequestURI().startsWith("/api/")).permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/usuarios/registro").permitAll()
+                        // QR de Yape Negocio: es una imagen publica (la mete un <img> sin token).
+                        .requestMatchers(HttpMethod.GET, "/api/pagos/yape/qr").permitAll()
+                        // Portadas servidas por el backend (cuando no hay URL publica de R2):
+                        // las pide un <img> sin token y el bucket de portadas ya es publico.
+                        .requestMatchers(HttpMethod.GET, "/api/archivos/portadas/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/libros/**", "/api/autores/**", "/api/generos/**",
                                 "/api/configuracion").permitAll()
 
                         // ======== Solo GERENTE ========
-                        .requestMatchers(HttpMethod.PUT, "/api/configuracion/**").hasRole(GERENTE)
-                        .requestMatchers(HttpMethod.GET, "/api/configuracion/historial").hasRole(GERENTE)
+                        // GET /api/configuracion (ruta exacta) es publica y ya quedo permitida arriba.
+                        // Todo lo demas bajo ese prefijo es solo del gerente: se protege el prefijo
+                        // entero para que un endpoint nuevo no quede abierto por descuido.
+                        .requestMatchers("/api/configuracion/**").hasRole(GERENTE)
+                        // Auditoria: quien hizo que. Solo el gerente.
+                        .requestMatchers("/api/auditoria/**").hasRole(GERENTE)
                         .requestMatchers(HttpMethod.POST, "/api/notificaciones/generar").hasRole(GERENTE)
+                        // Almacenamiento: crear en R2 los buckets que falten. Solo el gerente.
+                        // Va aqui (antes que el bloque de bibliotecario/gerente) porque el
+                        // orden de las reglas es posicional: el primero que coincide gana.
+                        .requestMatchers(HttpMethod.POST, "/api/almacenamiento/preparar").hasRole(GERENTE)
 
                         // ======== Solo LECTOR ========
                         .requestMatchers(HttpMethod.POST, "/api/reservas").hasRole(LECTOR)
+                        .requestMatchers(HttpMethod.POST, "/api/accesos-virtuales").hasRole(LECTOR)
 
                         // ======== Cualquier usuario logueado (datos propios) ========
                         .requestMatchers("/api/mi/**", "/api/usuarios/me").authenticated()
@@ -89,12 +115,26 @@ public class SecurityConfig {
                         .authenticated()
                         .requestMatchers(HttpMethod.PATCH, "/api/notificaciones/*/leida", "/api/notificaciones/leidas",
                                 "/api/reservas/*/cancelar").authenticated()
+                        // Libros virtuales: los suyos (leer, subir el comprobante, cancelar).
+                        .requestMatchers(HttpMethod.GET, "/api/accesos-virtuales/mis-libros",
+                                "/api/accesos-virtuales/*/pdf",
+                                "/api/accesos-virtuales/*/comprobantes").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/accesos-virtuales/*/comprobante",
+                                "/api/accesos-virtuales/*/cancelar").authenticated()
 
                         // ======== BIBLIOTECARIO o GERENTE ========
                         .requestMatchers("/api/libros/**", "/api/autores/**", "/api/generos/**", "/api/ejemplares/**",
                                 "/api/prestamos/**", "/api/devoluciones/**", "/api/multas/**", "/api/reservas/**",
                                 "/api/usuarios/**", "/api/sanciones/**", "/api/turnos/**", "/api/reportes/**",
-                                "/api/cierre-diario/**", "/api/dashboard/**", "/api/notificaciones/**")
+                                "/api/cierre-diario/**", "/api/dashboard/**", "/api/notificaciones/**",
+                                "/api/almacenamiento/**", "/api/comprobantes/**", "/api/cajas/**")
+                        .hasAnyRole(BIBLIOTECARIO, GERENTE)
+                        // Panel del mostrador de libros virtuales (pedidos, codigo del cliente, cobrar).
+                        .requestMatchers(HttpMethod.GET, "/api/accesos-virtuales/pedidos",
+                                "/api/accesos-virtuales/codigo/*", "/api/accesos-virtuales/libro/*")
+                        .hasAnyRole(BIBLIOTECARIO, GERENTE)
+                        .requestMatchers(HttpMethod.POST, "/api/accesos-virtuales/*/cambiar",
+                                "/api/accesos-virtuales/*/cobrar")
                         .hasAnyRole(BIBLIOTECARIO, GERENTE)
 
                         // ======== Resto: basta con estar logueado ========
@@ -122,13 +162,7 @@ public class SecurityConfig {
         return source;
     }
 
-    /**
-     * Encriptador de contraseñas (BCrypt). Lo usan AuthController (login) y UsuarioService (registro).
-     *
-     * IMPORTANTE: este bean REEMPLAZA al de config/PasswordConfig.java.
-     * Si todavía tienes ese archivo, BÓRRALO para evitar el error de beans duplicados
-     * ("expected single matching bean but found 2").
-     */
+    /** Encriptador de contraseñas (BCrypt). Lo usan AuthService (login) y UsuarioService (registro). */
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();

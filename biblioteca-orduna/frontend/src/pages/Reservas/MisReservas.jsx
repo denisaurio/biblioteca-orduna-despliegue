@@ -81,9 +81,11 @@ function NuevaReserva({ onClose, onHecho }) {
               <div className="pick-title">{l.titulo}</div>
               <div className="pick-sub">{l.autores.map((a) => a.nombre).join(', ')}</div>
             </div>
-            {l.estado === 'DISPONIBLE'
-              ? <span title="Pídelo en mostrador"><Estado valor={l.estado} mapa={estadoLibro} /></span>
-              : <button className="btn-primary btn-sm" disabled={enviando} onClick={() => reservar(l)}>Reservar</button>}
+            {l.tipo_libro === 'VIRTUAL'
+              ? <span className="pick-sub">Virtual: alquílalo o cómpralo en Libros</span>
+              : l.estado === 'DISPONIBLE'
+                ? <span title="Pídelo en mostrador"><Estado valor={l.estado} mapa={estadoLibro} /></span>
+                : <button className="btn-primary btn-sm" disabled={enviando} onClick={() => reservar(l)}>Reservar</button>}
           </div>
         ))}
       </div>

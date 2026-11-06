@@ -30,21 +30,27 @@ public class UsuarioService {
     private final PasswordEncoder passwordEncoder;
     private final SancionRepository sancionRepository;
     private final PrestamoRepository prestamoRepository;
+    private final AuditoriaService auditoriaService;
 
     public UsuarioService(UsuarioRepository usuarioRepository, PasswordEncoder passwordEncoder,
-                          SancionRepository sancionRepository, PrestamoRepository prestamoRepository) {
+                          SancionRepository sancionRepository, PrestamoRepository prestamoRepository,
+                          AuditoriaService auditoriaService) {
         this.usuarioRepository = usuarioRepository;
         this.passwordEncoder = passwordEncoder;
         this.sancionRepository = sancionRepository;
         this.prestamoRepository = prestamoRepository;
+        this.auditoriaService = auditoriaService;
     }
 
     /**
      * RF04 - Registrar lector (auto-registro público o alta desde la pantalla Usuarios).
      * Lanza RecursoDuplicadoException si el DNI o el email ya existen.
+     *
+     * idActor es quien lo dio de alta: null en el auto-registro público (el lector se
+     * registra solo) y el bibliotecario o gerente cuando lo carga desde la pantalla Usuarios.
      */
     @Transactional
-    public UsuarioResponseDTO registrarLector(RegistroUsuarioDTO datos) {
+    public UsuarioResponseDTO registrarLector(RegistroUsuarioDTO datos, Long idActor) {
         String dni = datos.dni().trim();
         String email = datos.email().trim().toLowerCase();
         if (usuarioRepository.existsByDni(dni)) {
@@ -64,7 +70,11 @@ public class UsuarioService {
         u.setPassword(passwordEncoder.encode(datos.password()));
         u.setRol(Rol.LECTOR);
         u.setActivo(true);
-        return aDTO(usuarioRepository.save(u));
+        u = usuarioRepository.save(u);
+        auditoriaService.registrar(idActor, TipoAccionAuditoria.REGISTRAR_USUARIO, "USUARIO", u.getId(),
+                (idActor == null ? "Se registró como lector" : "Registró al lector")
+                        + ": " + u.getNombreCompleto() + " (DNI " + u.getDni() + ")");
+        return aDTO(u);
     }
 
     /** Pantalla Usuarios: búsqueda + filtro por rol + paginación. */
@@ -109,7 +119,10 @@ public class UsuarioService {
         if (datos.activo() != null && PERSONAL.contains(actor.getRol()) && !esElMismo) {
             u.setActivo(datos.activo());
         }
-        return aDTO(usuarioRepository.save(u));
+        u = usuarioRepository.save(u);
+        auditoriaService.registrar(idActor, TipoAccionAuditoria.EDITAR_USUARIO, "USUARIO", u.getId(),
+                "Editó el usuario " + u.getNombreCompleto() + " (" + u.getDni() + ")");
+        return aDTO(u);
     }
 
     /** ACTIVO / INACTIVO / SUSPENDIDO (calculado, no se guarda). */

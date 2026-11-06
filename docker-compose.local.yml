@@ -1,0 +1,39 @@
+# Prueba LOCAL de la imagen de produccion (no lo usa Coolify).
+#   docker compose -f docker-compose.local.yml up --build
+#   -> http://localhost:8080
+# Lee los secretos de R2 de biblioteca-orduna/.env
+services:
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: biblioteca_orduna
+      MYSQL_USER: biblioteca
+      MYSQL_PASSWORD: biblioteca123
+      MYSQL_ROOT_PASSWORD: root123
+      TZ: America/Lima
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    volumes:
+      - db-datos:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-proot123"]
+      interval: 10s
+      retries: 10
+
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - biblioteca-orduna/.env
+    environment:
+      DB_URL: jdbc:mysql://db:3306/biblioteca_orduna?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=America/Lima&characterEncoding=UTF-8
+      DB_USERNAME: biblioteca
+      DB_PASSWORD: biblioteca123
+      SHOW_SQL: "false"
+      FRONTEND_URL: http://localhost:8080
+    ports:
+      - "8080:8080"
+
+volumes:
+  db-datos:

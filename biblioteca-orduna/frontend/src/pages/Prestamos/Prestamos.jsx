@@ -11,7 +11,7 @@ import { useApi, useAccion, useDebounce } from '../../hooks.js';
 import Estado from '../../components/common/Estado.jsx';
 import { Cargando, Vacio } from '../../components/common/Cargando.jsx';
 import { estadoLibro, estadoUsuario } from '../../utils/estados.js';
-import { codigo, fmtFecha, hoyISO, iniciales, nombreTipoUsuario } from '../../utils/formato.js';
+import { codigo, fmtFecha, fmtSoles, hoyISO, iniciales, nombreTipoUsuario } from '../../utils/formato.js';
 import './Prestamos.css';
 
 const pasos = ['Usuario', 'Libro', 'Confirmar'];
@@ -79,6 +79,7 @@ function Prestamos() {
                 <dt>Lector</dt><dd>{resultado.nombre_lector}</dd>
                 <dt>Tipo</dt><dd>{resultado.tipo_prestamo === 'ABIERTO' ? 'Abierto (sin multa)' : 'Fecha fija'}</dd>
                 <dt>Devolver hasta</dt><dd>{resultado.fecha_vencimiento ? fmtFecha(resultado.fecha_vencimiento) : '—'}</dd>
+                <dt>Precio del ejemplar</dt><dd className="mono">{resultado.precio_copia != null ? fmtSoles(resultado.precio_copia) : '—'}</dd>
               </dl>
               <button className="btn-primary" style={{ marginTop: 18 }} onClick={reiniciar}>Registrar otro préstamo</button>
             </>
@@ -176,6 +177,10 @@ function Prestamos() {
           <div className="summary-row"><span>Libro</span><b>{libroSel ? <>{libroSel.titulo}<br /><small>{libroSel.autores.map((a) => a.nombre).join(', ')}</small></> : '—'}</b></div>
           <div className="summary-row"><span>Fecha préstamo</span><b>{fmtFecha(hoyISO())}</b></div>
           <div className="summary-row"><span>Fecha de devolución</span><b>{fechaDevolucion}</b></div>
+          <div className="summary-row">
+            <span>Precio del ejemplar</span>
+            <b>{libroSel?.precio_compra != null ? fmtSoles(libroSel.precio_compra) : '—'}</b>
+          </div>
           {!resultado && (
             <button className="btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: 16 }}
                     disabled={paso !== 3 || enviando} onClick={confirmar}>

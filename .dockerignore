@@ -1,0 +1,12 @@
+# Nada de secretos ni de basura local dentro de la imagen.
+**/.env
+**/.env.local
+**/node_modules
+**/dist
+**/target
+.git
+.idea
+**/*.iml
+**/.vscode
+*.docx
+**/*.log

@@ -142,6 +142,21 @@ public class GlobalExceptionHandler {
         return responder(HttpStatus.FORBIDDEN, "Su rol no tiene permiso para esta operación", req);
     }
 
+    /**
+     * Fallo del almacenamiento externo (Cloudflare R2) o de la descarga de una portada:
+     * no es una regla incumplida, es una caida. Se devuelve el motivo (los mensajes de
+     * AlmacenamientoException estan escritos para el usuario y no llevan secretos), asi
+     * el bibliotecario sabe si fue R2, la red o el archivo.
+     */
+    @ExceptionHandler(AlmacenamientoException.class)
+    public ResponseEntity<ErrorResponse> almacenamiento(AlmacenamientoException ex, HttpServletRequest req) {
+        log.error("Error de almacenamiento en {}: {}", req.getRequestURI(), ex.getMessage());
+        String mensaje = ex.getMessage() == null || ex.getMessage().isBlank()
+                ? "No se pudo guardar el archivo en el almacenamiento. Intente nuevamente"
+                : ex.getMessage();
+        return responder(HttpStatus.INTERNAL_SERVER_ERROR, mensaje, req);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> inesperado(Exception ex, HttpServletRequest req) {
         log.error("Error no controlado en {}", req.getRequestURI(), ex);

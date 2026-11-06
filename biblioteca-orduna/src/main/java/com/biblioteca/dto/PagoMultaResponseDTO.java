@@ -10,6 +10,8 @@ public record PagoMultaResponseDTO(
         @JsonProperty("id_multa") Long idMulta,
         @JsonProperty("nombre_lector") String nombreLector,
         @JsonProperty("monto_pagado") BigDecimal montoPagado,
+        /** Efectivo realmente recibido. En efectivo es menor que el monto salda, por el descuento. */
+        @JsonProperty("descuento") BigDecimal descuento,
         @JsonProperty("metodo_pago") String metodoPago,
         @JsonProperty("fecha_pago") LocalDateTime fechaPago,
         @JsonProperty("id_bibliotecario") Long idBibliotecario,

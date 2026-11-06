@@ -1,0 +1,23 @@
+/* La caja: el cajon de dinero de la biblioteca. */
+.caja-stats {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 18px;
+}
+.caja-desglose {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+}
+.caja-bloque { padding: 16px; }
+.caja-lineas { margin-top: 10px; }
+.caja-linea {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px;
+}
+.caja-linea:last-child { border-bottom: none; }
+.caja-abrir { padding: 20px; }
+.caja-diferencia {
+  padding: 9px 12px; border-radius: 7px; font-size: 12.5px;
+  background: var(--blue-bg); color: var(--blue-text);
+}
+
+@media (max-width: 900px) {
+  .caja-stats, .caja-desglose { grid-template-columns: 1fr; }
+}

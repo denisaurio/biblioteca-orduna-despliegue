@@ -5,11 +5,18 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 public interface LibroRepository extends JpaRepository<Libro, Long> {
     boolean existsByIsbn(String isbn);
     boolean existsByIsbnAndIdNot(String isbn, Long id);
+    Optional<Libro> findByIsbn(String isbn);
+
+    /** Cuantos libros tiene cada autor, en una sola consulta. Filas: [idAutor, cantidad]. */
+    @Query("SELECT a.id, COUNT(l) FROM Libro l JOIN l.autores a WHERE a.id IN :ids GROUP BY a.id")
+    List<Object[]> contarPorAutores(@Param("ids") Collection<Long> ids);
 
     /** Libros de un autor (tabla libros_autores). */
     List<Libro> findByAutoresIdOrderByTituloAsc(Long idAutor);

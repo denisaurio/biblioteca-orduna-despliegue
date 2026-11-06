@@ -1,0 +1,4 @@
+/* Auditoria: el historial de acciones del personal. */
+.aud-filtros { padding: 16px; margin-bottom: 16px; }
+.aud-filtros .filtros-row { gap: 16px; }
+.aud-detalle { font-size: 13px; max-width: 460px; }

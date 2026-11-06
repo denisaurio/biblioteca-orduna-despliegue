@@ -13,3 +13,19 @@
   .catalogo-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
+
+/* ---- Formulario de libro: portada y chips de autores/géneros nuevos ---- */
+.form-portada {
+  width: 92px;
+  height: 128px;
+  flex-shrink: 0;
+  background: #8C8577;
+  overflow: hidden;
+  padding: 0;
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+.form-portada:hover { transform: translateY(-2px) scale(1.03); box-shadow: 0 8px 18px rgba(11,43,74,.18); }
+.chip { transition: background .15s ease, border-color .15s ease, transform .1s ease; }
+.chip:hover { border-color: var(--navy-lighter); transform: translateY(-1px); }
+.chips .chip.chip-nuevo { background: var(--green-bg); color: var(--green-text); border: 1px dashed var(--green-text); font-weight: 500; }
+.chips .chip.chip-nuevo:hover { background: var(--red-bg); color: var(--red-text); border-color: var(--red-text); }

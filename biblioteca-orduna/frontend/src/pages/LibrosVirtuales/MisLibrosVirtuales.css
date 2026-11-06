@@ -1,0 +1,13 @@
+/* Mis libros virtuales (lector). */
+.mlv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 14px; }
+.mlv-grid-amplio { grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); }
+.mlv-card {
+  display: flex; gap: 12px; padding: 12px;
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow);
+}
+.mlv-card .portada { width: 76px; flex-shrink: 0; border-radius: 6px; overflow: hidden; padding: 0; }
+.mlv-info { flex: 1; min-width: 0; }
+.mlv-titulo { font-size: 13.5px; font-weight: 700; line-height: 1.3; }
+/* El alquiler vencido sale "en plomo": se ve, pero no se puede abrir. */
+.mlv-plomo { filter: grayscale(1); opacity: .55; }
+.mlv-vencido { font-size: 12px; color: var(--muted); margin: 6px 0; }

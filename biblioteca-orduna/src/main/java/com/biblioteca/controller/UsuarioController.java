@@ -29,14 +29,16 @@ public class UsuarioController {
     @PostMapping("/registro")
     @ResponseStatus(HttpStatus.CREATED)
     public UsuarioResponseDTO registrarse(@Valid @RequestBody RegistroUsuarioDTO datos) {
-        return usuarioService.registrarLector(datos);
+        // Auto-registro: no hay actor (el lector se registra solo).
+        return usuarioService.registrarLector(datos, null);
     }
 
     /** RF04 - POST /api/usuarios ("+ Registrar usuario", bibliotecario/gerente). Crea un LECTOR. */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public UsuarioResponseDTO registrar(@Valid @RequestBody RegistroUsuarioDTO datos) {
-        return usuarioService.registrarLector(datos);
+    public UsuarioResponseDTO registrar(@Valid @RequestBody RegistroUsuarioDTO datos,
+                                        @AuthenticationPrincipal UsuarioAutenticado actor) {
+        return usuarioService.registrarLector(datos, actor.id());
     }
 
     /** GET /api/usuarios?q=ana&rol=LECTOR&pagina=0&tamanio=10 (bibliotecario/gerente) */

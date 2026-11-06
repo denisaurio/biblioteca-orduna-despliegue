@@ -2,6 +2,7 @@ package com.biblioteca.service;
 
 import com.biblioteca.dto.ColaReservasDTO;
 import com.biblioteca.dto.NuevaReservaDTO;
+import com.biblioteca.dto.ReservaMostradorDTO;
 import com.biblioteca.dto.ReservaResponseDTO;
 import com.biblioteca.entity.*;
 import com.biblioteca.exception.AccesoDenegadoException;
@@ -67,10 +68,32 @@ public class ReservaService {
      */
     @Transactional
     public ReservaResponseDTO crearReserva(NuevaReservaDTO datos, Long idUsuarioLector) {
+        return reservar(datos.idLibro(), idUsuarioLector);
+    }
+
+    /**
+     * RF09 - El personal anota a un lector en la cola (lo pidio en el mostrador o por telefono).
+     * Mismas reglas que si reservara el propio lector. El actor (personal) sale del token y
+     * el permiso lo pone SecurityConfig (/api/reservas/** solo bibliotecario o gerente).
+     */
+    @Transactional
+    public ReservaResponseDTO crearReservaEnMostrador(ReservaMostradorDTO datos, Long idActor) {
+        Usuario actor = usuarioService.buscar(idActor);
+        if (!UsuarioService.esPersonal(actor)) {
+            throw new AccesoDenegadoException("Solo el personal puede reservar a nombre de un lector");
+        }
+        return reservar(datos.idLibro(), datos.idUsuarioLector());
+    }
+
+    private ReservaResponseDTO reservar(Long idLibro, Long idUsuarioLector) {
         Usuario lector = usuarioService.buscarLector(idUsuarioLector);
         sancionService.verificarSinSancion(lector.getId());
-        Libro libro = libroRepository.findById(datos.idLibro())
-                .orElseThrow(() -> new RecursoNoEncontradoException("No existe el libro con id " + datos.idLibro()));
+        Libro libro = libroRepository.findById(idLibro)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No existe el libro con id " + idLibro));
+        if (libro.getTipoLibro() == TipoLibro.VIRTUAL) {
+            throw new OperacionInvalidaException("'" + libro.getTitulo()
+                    + "' es un libro virtual: no se reserva, se alquila o se compra desde el catálogo");
+        }
 
         if (reservaRepository.existsByLibroIdAndLectorIdAndEstadoIn(libro.getId(), lector.getId(), ACTIVAS)) {
             throw new ReservaActivaDuplicadaException("Ya tiene una reserva activa para el libro '" + libro.getTitulo() + "'");

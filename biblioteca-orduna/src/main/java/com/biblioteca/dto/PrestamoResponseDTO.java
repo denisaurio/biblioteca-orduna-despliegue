@@ -2,12 +2,14 @@ package com.biblioteca.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
  * estado: ACTIVO, VENCIDO (activo y pasado de fecha) o DEVUELTO.
  * en_plazo: false cuando está vencido ("Retraso" en la pantalla Devoluciones).
+ * precio_copia: precio del ejemplar cuando se prestó (copiado, no se recalcula).
  */
 public record PrestamoResponseDTO(
         Long id,
@@ -24,5 +26,6 @@ public record PrestamoResponseDTO(
         @JsonProperty("fecha_vencimiento") LocalDate fechaVencimiento,
         @JsonProperty("dias_retraso") int diasRetraso,
         @JsonProperty("en_plazo") boolean enPlazo,
-        String estado
+        String estado,
+        @JsonProperty("precio_copia") BigDecimal precioCopia
 ) {}

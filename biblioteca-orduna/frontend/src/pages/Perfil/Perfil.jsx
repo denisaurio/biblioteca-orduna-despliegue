@@ -6,6 +6,7 @@ import { useApi } from '../../hooks.js';
 import Estado from '../../components/common/Estado.jsx';
 import { Cargando } from '../../components/common/Cargando.jsx';
 import { FormUsuario } from '../Usuarios/Usuarios.jsx';
+import { ListaMisLibrosVirtuales } from '../LibrosVirtuales/MisLibrosVirtuales.jsx';
 import { estadoUsuario } from '../../utils/estados.js';
 import { codigo, fmtFecha, iniciales, nombreRol, nombreTipoUsuario } from '../../utils/formato.js';
 
@@ -40,6 +41,15 @@ function Perfil() {
           <dt>Registrado</dt><dd>{fmtFecha(u.fecha_registro)}</dd>
         </dl>
       </div>
+
+      <div className="card" style={{ padding: 24, marginTop: 20 }}>
+        <h3 className="seccion-titulo">Mis libros virtuales</h3>
+        <p className="pick-sub" style={{ marginBottom: 12 }}>
+          Los que alquilaste y los que compraste. Los alquileres vencidos salen en plomo.
+        </p>
+        <ListaMisLibrosVirtuales compacta />
+      </div>
+
       {editar && (
         <FormUsuario
           usuario={u}

@@ -16,6 +16,15 @@
     <properties>
         <java.version>17</java.version>
         <jjwt.version>0.12.6</jjwt.version>
+        <awssdk.version>2.46.7</awssdk.version>
+        <!--
+          Spring Boot 3.3.4 fija httpclient5/httpcore5 en 5.3.1/5.2.5, pero el cliente HTTP
+          del AWS SDK (necesario para Cloudflare R2) usa TlsSocketStrategy y
+          DefaultHttpRequestWriterFactory(Http1Config), que aparecen en la 5.4.
+          Sin subirlos la app no arranca: NoClassDefFoundError al crear el S3Client.
+        -->
+        <httpclient5.version>5.4.1</httpclient5.version>
+        <httpcore5.version>5.4.1</httpcore5.version>
     </properties>
     <dependencies>
         <dependency>
@@ -29,6 +38,12 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <!-- Cloudflare R2: API compatible con S3 (AWS SDK v2) -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>s3</artifactId>
+            <version>${awssdk.version}</version>
         </dependency>
         <!-- Seguridad: Spring Security + JWT (jjwt) -->
         <dependency>

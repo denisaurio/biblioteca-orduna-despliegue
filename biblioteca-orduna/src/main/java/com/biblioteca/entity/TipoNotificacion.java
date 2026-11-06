@@ -13,6 +13,12 @@ public enum TipoNotificacion {
     MULTA_PENDIENTE,
     /** Se agregó un libro al catálogo. */
     NUEVO_LIBRO,
+    /** El libro virtual se pagó y el lector ya lo tiene. */
+    ACCESO_VIRTUAL,
+    /** El lector subio su comprobante de Yape: el personal tiene que revisarlo. */
+    COMPROBANTE_YAPE,
+    /** El personal rechazo el comprobante de Yape del lector. */
+    PAGO_RECHAZADO,
     /** Aviso creado a mano por un bibliotecario o gerente ("+ Crear aviso"). */
     ADMINISTRATIVO
 }

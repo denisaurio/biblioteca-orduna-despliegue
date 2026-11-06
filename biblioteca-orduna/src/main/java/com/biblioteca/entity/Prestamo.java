@@ -44,6 +44,15 @@ public class Prestamo {
     @Column(name = "tarifa_multa_diaria", precision = 10, scale = 2)
     private BigDecimal tarifaMultaDiaria;
 
+    /**
+     * Precio del ejemplar en el momento del préstamo. Se COPIA, igual que la tarifa
+     * de multa: cambiar después el precio del libro o del ejemplar no altera los
+     * préstamos ya hechos (sirve para saber cuánto vale lo que salió de la biblioteca).
+     * Vale igual en las dos rutas: fecha fija y abierto.
+     */
+    @Column(name = "precio_copia", precision = 10, scale = 2)
+    private BigDecimal precioCopia;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private EstadoPrestamo estado = EstadoPrestamo.ACTIVO;
@@ -69,6 +78,8 @@ public class Prestamo {
     public void setFechaVencimiento(LocalDate fechaVencimiento) { this.fechaVencimiento = fechaVencimiento; }
     public BigDecimal getTarifaMultaDiaria() { return tarifaMultaDiaria; }
     public void setTarifaMultaDiaria(BigDecimal tarifaMultaDiaria) { this.tarifaMultaDiaria = tarifaMultaDiaria; }
+    public BigDecimal getPrecioCopia() { return precioCopia; }
+    public void setPrecioCopia(BigDecimal precioCopia) { this.precioCopia = precioCopia; }
     public EstadoPrestamo getEstado() { return estado; }
     public void setEstado(EstadoPrestamo estado) { this.estado = estado; }
 }

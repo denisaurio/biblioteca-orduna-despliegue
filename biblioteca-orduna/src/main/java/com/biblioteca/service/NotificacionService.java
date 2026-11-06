@@ -38,16 +38,19 @@ public class NotificacionService {
     private final UsuarioRepository usuarioRepository;
     private final ConfiguracionService configuracionService;
     private final UsuarioService usuarioService;
+    private final AuditoriaService auditoriaService;
 
     public NotificacionService(NotificacionRepository notificacionRepository, PrestamoRepository prestamoRepository,
                                MultaRepository multaRepository, UsuarioRepository usuarioRepository,
-                               ConfiguracionService configuracionService, UsuarioService usuarioService) {
+                               ConfiguracionService configuracionService, UsuarioService usuarioService,
+                               AuditoriaService auditoriaService) {
         this.notificacionRepository = notificacionRepository;
         this.prestamoRepository = prestamoRepository;
         this.multaRepository = multaRepository;
         this.usuarioRepository = usuarioRepository;
         this.configuracionService = configuracionService;
         this.usuarioService = usuarioService;
+        this.auditoriaService = auditoriaService;
     }
 
     /**
@@ -67,13 +70,32 @@ public class NotificacionService {
     public int crearAvisoAdministrativo(CrearAvisoDTO datos, Long idCreador) {
         Usuario creador = usuarioService.buscarPersonal(idCreador);
         String mensaje = datos.mensaje().trim();
+        int destinatarios;
         if (datos.idUsuario() != null) {
             guardar(usuarioService.buscar(datos.idUsuario()), TipoNotificacion.ADMINISTRATIVO, mensaje, null, creador);
-            return 1;
+            destinatarios = 1;
+        } else {
+            List<Usuario> lectores = usuarioRepository.findByRolAndActivoTrue(Rol.LECTOR);
+            lectores.forEach(l -> guardar(l, TipoNotificacion.ADMINISTRATIVO, mensaje, null, creador));
+            destinatarios = lectores.size();
         }
-        List<Usuario> lectores = usuarioRepository.findByRolAndActivoTrue(Rol.LECTOR);
-        lectores.forEach(l -> guardar(l, TipoNotificacion.ADMINISTRATIVO, mensaje, null, creador));
-        return lectores.size();
+        auditoriaService.registrar(idCreador, TipoAccionAuditoria.CREAR_AVISO, "AVISO", null,
+                "Creó un aviso para " + destinatarios + " lector(es): " + mensaje);
+        return destinatarios;
+    }
+
+    /**
+     * Aviso para el personal (bibliotecarios y gerentes). Los avisos van a un usuario
+     * concreto, asi que se crea uno por cada persona del personal: asi todas ven en su
+     * campanita que hay un comprobante de Yape por revisar.
+     */
+    @Transactional
+    public int crearParaPersonal(TipoNotificacion tipo, String mensaje, Long idReferencia) {
+        List<Usuario> personal = new java.util.ArrayList<>();
+        personal.addAll(usuarioRepository.findByRolAndActivoTrue(Rol.BIBLIOTECARIO));
+        personal.addAll(usuarioRepository.findByRolAndActivoTrue(Rol.GERENTE));
+        personal.forEach(p -> guardar(p, tipo, mensaje, idReferencia, null));
+        return personal.size();
     }
 
     /** Aviso "nuevo libro en catálogo" a todos los lectores activos. */
@@ -187,7 +209,7 @@ public class NotificacionService {
             case RESERVA_DISPONIBLE, RESERVA_VENCIDA -> c.isAvisoReserva();
             case MULTA_PENDIENTE -> c.isAvisoMulta();
             case NUEVO_LIBRO -> c.isAvisoNuevoLibro();
-            case ADMINISTRATIVO -> true;
+            case ACCESO_VIRTUAL, COMPROBANTE_YAPE, PAGO_RECHAZADO, ADMINISTRATIVO -> true;
         };
     }
 

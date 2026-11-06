@@ -31,11 +31,12 @@ public class PrestamoService {
     private final UsuarioService usuarioService;
     private final SancionService sancionService;
     private final ConfiguracionService configuracionService;
+    private final AuditoriaService auditoriaService;
 
     public PrestamoService(PrestamoRepository prestamoRepository, EjemplarRepository ejemplarRepository,
                            ReservaRepository reservaRepository, MultaRepository multaRepository,
                            UsuarioService usuarioService, SancionService sancionService,
-                           ConfiguracionService configuracionService) {
+                           ConfiguracionService configuracionService, AuditoriaService auditoriaService) {
         this.prestamoRepository = prestamoRepository;
         this.ejemplarRepository = ejemplarRepository;
         this.reservaRepository = reservaRepository;
@@ -43,6 +44,7 @@ public class PrestamoService {
         this.usuarioService = usuarioService;
         this.sancionService = sancionService;
         this.configuracionService = configuracionService;
+        this.auditoriaService = auditoriaService;
     }
 
     /**
@@ -97,6 +99,9 @@ public class PrestamoService {
         p.setBibliotecario(bibliotecario);
         p.setTipo(tipo);
         p.setFechaPrestamo(LocalDateTime.now());
+        // El precio del ejemplar se COPIA al préstamo (como la tarifa de multa):
+        // vale igual en las dos rutas, con fecha fija y abierto.
+        p.setPrecioCopia(EjemplarService.precioDe(ejemplar.getPrecio(), ejemplar.getLibro()));
         if (tipo == TipoPrestamo.FECHA_FIJA) {
             ConfiguracionMulta params = configuracionService.obtenerParametros();
             p.setFechaVencimiento(LocalDate.now().plusDays(params.getDiasMax()));
@@ -104,7 +109,11 @@ public class PrestamoService {
         }
         p.setEstado(EstadoPrestamo.ACTIVO);
         ejemplar.setEstado(EstadoEjemplar.PRESTADO);
-        return aDTO(prestamoRepository.save(p));
+        p = prestamoRepository.save(p);
+        auditoriaService.registrar(idBibliotecario, TipoAccionAuditoria.REGISTRAR_PRESTAMO, "PRESTAMO", p.getId(),
+                "Prestó '" + ejemplar.getLibro().getTitulo() + "' (" + ejemplar.getCodigoInventario()
+                        + ") a " + lector.getNombreCompleto() + " (" + tipo.name().toLowerCase() + ")");
+        return aDTO(p);
     }
 
     /**
@@ -138,8 +147,14 @@ public class PrestamoService {
 
     private Ejemplar elegirEjemplar(NuevoPrestamoDTO datos, Usuario lector) {
         if (datos.idEjemplar() != null) {
-            return ejemplarRepository.findById(datos.idEjemplar())
+            Ejemplar e = ejemplarRepository.findByIdForUpdate(datos.idEjemplar())
                     .orElseThrow(() -> new RecursoNoEncontradoException("No existe el ejemplar con id " + datos.idEjemplar()));
+            // Si también llega id_libro, el ejemplar tiene que ser de ese libro.
+            if (datos.idLibro() != null && !e.getLibro().getId().equals(datos.idLibro())) {
+                throw new OperacionInvalidaException("El ejemplar " + e.getCodigoInventario()
+                        + " no pertenece al libro indicado");
+            }
+            return e;
         }
         if (datos.idLibro() == null) {
             throw new OperacionInvalidaException("Debe indicar id_ejemplar o id_libro");
@@ -148,9 +163,10 @@ public class PrestamoService {
         var apartado = reservaRepository.findFirstByLibroIdAndLectorIdAndEstado(
                 datos.idLibro(), lector.getId(), EstadoReserva.NOTIFICADA);
         if (apartado.isPresent() && apartado.get().getEjemplarAsignado() != null) {
-            return apartado.get().getEjemplarAsignado();
+            return ejemplarRepository.findByIdForUpdate(apartado.get().getEjemplarAsignado().getId())
+                    .orElseThrow(() -> new OperacionInvalidaException("El ejemplar apartado ya no está disponible"));
         }
-        // 2) El primer ejemplar disponible
+        // 2) El primer ejemplar disponible (la consulta lleva bloqueo pesimista)
         return ejemplarRepository.findFirstByLibroIdAndEstadoOrderByIdAsc(datos.idLibro(), EstadoEjemplar.DISPONIBLE)
                 .orElseThrow(() -> new EjemplarNoDisponibleException(
                         "No hay ejemplares disponibles de este libro. El lector puede reservarlo"));
@@ -173,6 +189,6 @@ public class PrestamoService {
         return new PrestamoResponseDTO(p.getId(), e.getId(), e.getCodigoInventario(), e.getLibro().getId(),
                 e.getLibro().getTitulo(), p.getLector().getId(), p.getLector().getNombreCompleto(),
                 p.getLector().getDni(), p.getBibliotecario().getId(), p.getTipo().name(),
-                p.getFechaPrestamo(), p.getFechaVencimiento(), dias, !vencido, estado);
+                p.getFechaPrestamo(), p.getFechaVencimiento(), dias, !vencido, estado, p.getPrecioCopia());
     }
 }

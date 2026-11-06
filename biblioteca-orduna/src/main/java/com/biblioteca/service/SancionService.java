@@ -4,6 +4,7 @@ import com.biblioteca.dto.SancionDTO;
 import com.biblioteca.dto.SancionResponseDTO;
 import com.biblioteca.entity.Rol;
 import com.biblioteca.entity.Sancion;
+import com.biblioteca.entity.TipoAccionAuditoria;
 import com.biblioteca.entity.Usuario;
 import com.biblioteca.exception.OperacionInvalidaException;
 import com.biblioteca.exception.RecursoNoEncontradoException;
@@ -29,10 +30,13 @@ public class SancionService {
 
     private final SancionRepository sancionRepository;
     private final UsuarioService usuarioService;
+    private final AuditoriaService auditoriaService;
 
-    public SancionService(SancionRepository sancionRepository, UsuarioService usuarioService) {
+    public SancionService(SancionRepository sancionRepository, UsuarioService usuarioService,
+                          AuditoriaService auditoriaService) {
         this.sancionRepository = sancionRepository;
         this.usuarioService = usuarioService;
+        this.auditoriaService = auditoriaService;
     }
 
     /** RF17 - Suspender a un lector hasta fecha_fin (inclusive). */
@@ -52,7 +56,11 @@ public class SancionService {
         s.setMotivo(datos.motivo().trim());
         s.setFechaInicio(LocalDateTime.now());
         s.setFechaFin(datos.fechaFin());
-        return aDTO(sancionRepository.save(s));
+        s = sancionRepository.save(s);
+        auditoriaService.registrar(idBibliotecario, TipoAccionAuditoria.APLICAR_SANCION, "SANCION", s.getId(),
+                "Sancionó a " + usuario.getNombreCompleto() + " hasta el " + datos.fechaFin()
+                        + ": " + s.getMotivo());
+        return aDTO(s);
     }
 
     /** Levantar (finalizar antes de tiempo) una sanción activa. */
@@ -66,7 +74,10 @@ public class SancionService {
         }
         s.setFechaLevantamiento(LocalDateTime.now());
         s.setLevantadoPor(responsable);
-        return aDTO(sancionRepository.save(s));
+        s = sancionRepository.save(s);
+        auditoriaService.registrar(idBibliotecario, TipoAccionAuditoria.LEVANTAR_SANCION, "SANCION", s.getId(),
+                "Levantó la sanción de " + s.getUsuario().getNombreCompleto());
+        return aDTO(s);
     }
 
     /** Pantalla "Sanciones y bloqueos". soloActivas = true muestra solo las vigentes. */

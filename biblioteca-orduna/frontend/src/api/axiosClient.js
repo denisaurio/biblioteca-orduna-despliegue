@@ -6,6 +6,26 @@ export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/ap
 
 const axiosClient = axios.create({ baseURL: API_URL });
 
+/** Origen del backend (http://localhost:8080), sin el /api del final. */
+const ORIGEN_BACKEND = (() => {
+  try {
+    return new URL(API_URL, window.location.origin).origin;
+  } catch {
+    return '';
+  }
+})();
+
+/**
+ * Link de un archivo que puede venir del backend: las portadas que sirve Spring
+ * ("/api/archivos/portadas/...") llegan sin host y hay que ponerle el del backend.
+ * Las URL completas (R2 publico, Google Books) se devuelven tal cual.
+ */
+export function urlArchivo(url) {
+  if (!url) return '';
+  if (/^(https?:|blob:|data:)/i.test(url)) return url;
+  return ORIGEN_BACKEND + (url.startsWith('/') ? url : '/' + url);
+}
+
 // Adjunta el JWT en cada petición: Authorization: Bearer <token>
 axiosClient.interceptors.request.use((config) => {
   const sesion = leerSesion();

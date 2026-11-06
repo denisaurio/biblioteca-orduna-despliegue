@@ -4,6 +4,7 @@ import com.biblioteca.dto.ConfiguracionDTO;
 import com.biblioteca.dto.VigenciaMultaDTO;
 import com.biblioteca.entity.Configuracion;
 import com.biblioteca.entity.ConfiguracionMulta;
+import com.biblioteca.entity.TipoAccionAuditoria;
 import com.biblioteca.entity.Usuario;
 import com.biblioteca.repository.ConfiguracionMultaRepository;
 import com.biblioteca.repository.ConfiguracionRepository;
@@ -31,13 +32,15 @@ public class ConfiguracionService {
     private final ConfiguracionRepository configuracionRepository;
     private final ConfiguracionMultaRepository multaConfigRepository;
     private final UsuarioService usuarioService;
+    private final AuditoriaService auditoriaService;
 
     public ConfiguracionService(ConfiguracionRepository configuracionRepository,
                                 ConfiguracionMultaRepository multaConfigRepository,
-                                UsuarioService usuarioService) {
+                                UsuarioService usuarioService, AuditoriaService auditoriaService) {
         this.configuracionRepository = configuracionRepository;
         this.multaConfigRepository = multaConfigRepository;
         this.usuarioService = usuarioService;
+        this.auditoriaService = auditoriaService;
     }
 
     /** GET /api/configuracion */
@@ -87,6 +90,9 @@ public class ConfiguracionService {
             nueva.setModificadoPor(gerente);
             actual = multaConfigRepository.save(nueva);
         }
+        auditoriaService.registrar(idGerente, TipoAccionAuditoria.CAMBIAR_CONFIGURACION, "CONFIGURACION", g.getId(),
+                "Cambió la configuración de la biblioteca"
+                        + (cambio ? " (tarifa S/ " + tarifa + ", " + dias + " días, retiro en " + retiro + " días)" : ""));
         return aDTO(g, actual);
     }
 

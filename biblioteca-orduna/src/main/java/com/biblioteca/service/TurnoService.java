@@ -4,6 +4,7 @@ import com.biblioteca.dto.CierreTurnoDTO;
 import com.biblioteca.dto.TurnoResponseDTO;
 import com.biblioteca.entity.EstadoTurno;
 import com.biblioteca.entity.Rol;
+import com.biblioteca.entity.TipoAccionAuditoria;
 import com.biblioteca.entity.Turno;
 import com.biblioteca.entity.Usuario;
 import com.biblioteca.exception.OperacionInvalidaException;
@@ -23,10 +24,13 @@ public class TurnoService {
 
     private final TurnoRepository turnoRepository;
     private final UsuarioService usuarioService;
+    private final AuditoriaService auditoriaService;
 
-    public TurnoService(TurnoRepository turnoRepository, UsuarioService usuarioService) {
+    public TurnoService(TurnoRepository turnoRepository, UsuarioService usuarioService,
+                        AuditoriaService auditoriaService) {
         this.turnoRepository = turnoRepository;
         this.usuarioService = usuarioService;
+        this.auditoriaService = auditoriaService;
     }
 
     /** RF16 - Abrir turno. TurnoPendienteException si ya tiene uno abierto. */
@@ -42,7 +46,10 @@ public class TurnoService {
         t.setBibliotecario(b);
         t.setFechaApertura(LocalDateTime.now());
         t.setEstado(EstadoTurno.ABIERTO);
-        return aDTO(turnoRepository.save(t));
+        t = turnoRepository.save(t);
+        auditoriaService.registrar(idBibliotecario, TipoAccionAuditoria.ABRIR_TURNO, "TURNO", t.getId(),
+                "Abrió su turno");
+        return aDTO(t);
     }
 
     /** RF16 - Cerrar el turno abierto del bibliotecario. */
@@ -54,7 +61,10 @@ public class TurnoService {
         t.setFechaCierre(LocalDateTime.now());
         t.setObservaciones(datos == null ? null : datos.observaciones());
         t.setEstado(EstadoTurno.CERRADO);
-        return aDTO(turnoRepository.save(t));
+        t = turnoRepository.save(t);
+        auditoriaService.registrar(idBibliotecario, TipoAccionAuditoria.CERRAR_TURNO, "TURNO", t.getId(),
+                "Cerró su turno");
+        return aDTO(t);
     }
 
     /** Turno abierto del usuario logueado (null si no tiene). */

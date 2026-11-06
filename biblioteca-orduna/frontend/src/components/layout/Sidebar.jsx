@@ -1,7 +1,7 @@
 // Menú lateral igual al prototipo de Figma. Cambia según el rol:
 // - Lector: Inicio, Libros, Autores, Mis préstamos, Mis reservas, Avisos.
 // - Bibliotecario / Gerente: menú completo + bloque "Administración".
-// - Configuración: solo Gerente.
+// - Configuración y Auditoría: solo Gerente.
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { iniciales, nombreRol } from '../../utils/formato.js';
@@ -18,10 +18,13 @@ const I = {
   reservas: <path d="M12 7v5l3 3M12 21a9 9 0 1 1 0-18 9 9 0 0 1 0 18Z" />,
   ejemplares: <><rect x="4" y="4" width="16" height="16" rx="1.5" /><path d="M8 4v16M4 9h4" /></>,
   pagos: <><rect x="3" y="6" width="18" height="12" rx="1.5" /><path d="M3 10h18" /></>,
+  caja: <><rect x="3" y="7" width="18" height="12" rx="1.5" /><path d="M3 11h18M7 15h4" /></>,
+  virtual: <><rect x="5" y="2.5" width="14" height="19" rx="2" /><path d="M9 7h6M9 11h6M10.5 18h3" /></>,
   sanciones: <><circle cx="12" cy="12" r="9" /><path d="m8 8 8 8" /></>,
   avisos: <><path d="M6 8a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6Z" /><path d="M10 19a2 2 0 0 0 4 0" /></>,
   bitacora: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 3" /></>,
   reportes: <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />,
+  auditoria: <><path d="M4 5h16v14H4z" /><path d="M8 9h8M8 13h5M8 17h3" /></>,
   config: <><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" /></>,
 };
 
@@ -34,6 +37,7 @@ function menuPara(rol) {
         { to: '/autores', label: 'Autores', icon: I.autores },
         { to: '/prestamos', label: 'Mis préstamos y multas', icon: I.prestamos },
         { to: '/reservas', label: 'Mis reservas', icon: I.reservas },
+        { to: '/mis-libros-virtuales', label: 'Mis libros virtuales', icon: I.virtual },
         { to: '/avisos', label: 'Avisos', icon: I.avisos },
       ],
       admin: [],
@@ -41,13 +45,18 @@ function menuPara(rol) {
   }
   const admin = [
     { to: '/ejemplares', label: 'Ejemplares', icon: I.ejemplares },
+    { to: '/libros-virtuales', label: 'Reservas de libro virtual', icon: I.virtual },
     { to: '/pagos-multa', label: 'Pagos de multas', icon: I.pagos },
+    { to: '/caja', label: 'Caja', icon: I.caja },
     { to: '/sanciones', label: 'Sanciones y bloqueos', icon: I.sanciones },
     { to: '/avisos', label: 'Avisos', icon: I.avisos },
     { to: '/bitacora', label: 'Bitácora de turnos', icon: I.bitacora },
     { to: '/reportes', label: 'Reportes y cierre', icon: I.reportes },
   ];
-  if (rol === 'GERENTE') admin.push({ to: '/configuracion', label: 'Configuración', icon: I.config });
+  if (rol === 'GERENTE') {
+    admin.push({ to: '/auditoria', label: 'Auditoría', icon: I.auditoria });
+    admin.push({ to: '/configuracion', label: 'Configuración', icon: I.config });
+  }
   return {
     general: [
       { to: '/inicio', label: 'Inicio', icon: I.inicio },

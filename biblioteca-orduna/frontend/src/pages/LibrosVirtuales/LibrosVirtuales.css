@@ -1,0 +1,7 @@
+/* Panel del mostrador: reservas de libro virtual. */
+.lv-buscador {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 16px 18px; flex-wrap: wrap;
+}
+.lv-buscador .seccion-titulo { margin: 0 0 4px; }
+.lv-buscador .input { width: 220px; }

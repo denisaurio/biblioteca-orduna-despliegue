@@ -1,0 +1,43 @@
+/* Pago con Yape: el QR, el monto y la subida de la captura. */
+.qr-yape {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.qr-yape-monto {
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--navy);
+}
+
+.qr-yape-img {
+  display: block;
+  margin: 0 auto;
+  width: 230px;
+  height: 230px;
+  object-fit: contain;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+  padding: 6px;
+}
+
+.qr-yape-pasos {
+  text-align: left;
+}
+
+.qr-yape-pasos ol {
+  margin: 6px 0 0;
+  padding-left: 20px;
+}
+
+.qr-yape-pasos li {
+  margin-bottom: 3px;
+}
+
+.qr-yape-boton {
+  align-self: center;
+}

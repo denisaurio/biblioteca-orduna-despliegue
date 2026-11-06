@@ -20,6 +20,14 @@ public class PagoMulta {
     @Column(name = "monto_pagado", nullable = false, precision = 10, scale = 2)
     private BigDecimal montoPagado;
 
+    /**
+     * Descuento aplicado por pagar en efectivo (15%). Es la parte de la deuda que
+     * se cancela sin que entre dinero a la caja: monto_pagado es el efectivo real
+     * recibido y descuento es lo que se condonó.
+     */
+    @Column(name = "descuento", nullable = false, precision = 10, scale = 2)
+    private BigDecimal descuento = BigDecimal.ZERO;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "metodo_pago", nullable = false, length = 20)
     private MetodoPago metodoPago;
@@ -37,6 +45,8 @@ public class PagoMulta {
     public void setMulta(Multa multa) { this.multa = multa; }
     public BigDecimal getMontoPagado() { return montoPagado; }
     public void setMontoPagado(BigDecimal montoPagado) { this.montoPagado = montoPagado; }
+    public BigDecimal getDescuento() { return descuento; }
+    public void setDescuento(BigDecimal descuento) { this.descuento = descuento; }
     public MetodoPago getMetodoPago() { return metodoPago; }
     public void setMetodoPago(MetodoPago metodoPago) { this.metodoPago = metodoPago; }
     public LocalDateTime getFechaPago() { return fechaPago; }

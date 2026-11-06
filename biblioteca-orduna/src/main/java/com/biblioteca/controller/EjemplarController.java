@@ -4,9 +4,11 @@ import com.biblioteca.dto.ActualizarEjemplarDTO;
 import com.biblioteca.dto.EjemplarResponseDTO;
 import com.biblioteca.dto.RegistroEjemplarDTO;
 import com.biblioteca.entity.EstadoEjemplar;
+import com.biblioteca.security.UsuarioAutenticado;
 import com.biblioteca.service.EjemplarService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -25,8 +27,9 @@ public class EjemplarController {
     /** RF14 - POST /api/libros/{idLibro}/ejemplares  Body: {"codigo_inventario":"INV-001","ubicacion":"Estante A1"} */
     @PostMapping("/libros/{idLibro}/ejemplares")
     @ResponseStatus(HttpStatus.CREATED)
-    public EjemplarResponseDTO registrar(@PathVariable Long idLibro, @Valid @RequestBody RegistroEjemplarDTO datos) {
-        return ejemplarService.registrarEjemplar(idLibro, datos);
+    public EjemplarResponseDTO registrar(@PathVariable Long idLibro, @Valid @RequestBody RegistroEjemplarDTO datos,
+                                          @AuthenticationPrincipal UsuarioAutenticado actor) {
+        return ejemplarService.registrarEjemplar(idLibro, datos, actor.id());
     }
 
     /** GET /api/ejemplares?id_libro=1&estado=DISPONIBLE&q=A1 (todos opcionales) */
@@ -45,7 +48,8 @@ public class EjemplarController {
 
     /** PUT /api/ejemplares/{idEjemplar}  Body: {"ubicacion":"Estante B2","estado":"DANADO"} (dar de baja: "BAJA") */
     @PutMapping("/ejemplares/{idEjemplar}")
-    public EjemplarResponseDTO actualizar(@PathVariable Long idEjemplar, @Valid @RequestBody ActualizarEjemplarDTO datos) {
-        return ejemplarService.actualizarEjemplar(idEjemplar, datos);
+    public EjemplarResponseDTO actualizar(@PathVariable Long idEjemplar, @Valid @RequestBody ActualizarEjemplarDTO datos,
+                                           @AuthenticationPrincipal UsuarioAutenticado actor) {
+        return ejemplarService.actualizarEjemplar(idEjemplar, datos, actor.id());
     }
 }

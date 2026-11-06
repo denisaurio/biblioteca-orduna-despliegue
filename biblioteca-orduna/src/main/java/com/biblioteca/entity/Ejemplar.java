@@ -2,6 +2,8 @@ package com.biblioteca.entity;
 
 import jakarta.persistence.*;
 
+import java.math.BigDecimal;
+
 @Entity
 @Table(name = "ejemplares")
 public class Ejemplar {
@@ -24,6 +26,14 @@ public class Ejemplar {
     @Column(nullable = false, length = 20)
     private EstadoEjemplar estado = EstadoEjemplar.DISPONIBLE;
 
+    /**
+     * Precio de ESTA copia. Puede ser distinto del precio general del libro
+     * (una edicion antigua, un ejemplar de un tiraje raro). Si es null, se usa
+     * el precio de compra del libro.
+     */
+    @Column(precision = 10, scale = 2)
+    private BigDecimal precio;
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public Libro getLibro() { return libro; }
@@ -34,4 +44,6 @@ public class Ejemplar {
     public void setUbicacion(String ubicacion) { this.ubicacion = ubicacion; }
     public EstadoEjemplar getEstado() { return estado; }
     public void setEstado(EstadoEjemplar estado) { this.estado = estado; }
+    public BigDecimal getPrecio() { return precio; }
+    public void setPrecio(BigDecimal precio) { this.precio = precio; }
 }

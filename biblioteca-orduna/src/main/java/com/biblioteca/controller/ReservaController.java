@@ -2,6 +2,7 @@ package com.biblioteca.controller;
 
 import com.biblioteca.dto.ColaReservasDTO;
 import com.biblioteca.dto.NuevaReservaDTO;
+import com.biblioteca.dto.ReservaMostradorDTO;
 import com.biblioteca.dto.ReservaResponseDTO;
 import com.biblioteca.entity.EstadoReserva;
 import com.biblioteca.security.UsuarioAutenticado;
@@ -33,6 +34,17 @@ public class ReservaController {
     public ReservaResponseDTO crear(@Valid @RequestBody NuevaReservaDTO datos,
                                     @AuthenticationPrincipal UsuarioAutenticado lector) {
         return reservaService.crearReserva(datos, lector.id());
+    }
+
+    /**
+     * RF09 - POST /api/reservas/mostrador  Body: {"id_libro":1,"id_usuario_lector":5}
+     * (bibliotecario o gerente): anota a un lector en la cola desde el mostrador.
+     */
+    @PostMapping("/mostrador")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ReservaResponseDTO crearEnMostrador(@Valid @RequestBody ReservaMostradorDTO datos,
+                                               @AuthenticationPrincipal UsuarioAutenticado actor) {
+        return reservaService.crearReservaEnMostrador(datos, actor.id());
     }
 
     /** GET /api/reservas?estado=PENDIENTE (personal). Sin estado = todas. */

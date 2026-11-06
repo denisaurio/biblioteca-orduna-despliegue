@@ -96,7 +96,7 @@ function HistorialPagos({ busqueda }) {
                 <td className="mono">{codigo('P', p.id)}</td>
                 <td>{p.nombre_lector}</td>
                 <td className="mono">{codigo('M', p.id_multa)}</td>
-                <td className="mono">{fmtSoles(p.monto_pagado)}</td>
+                <td className="mono">{fmtSoles(p.monto_pagado)}{Number(p.descuento) > 0 && <div className="pick-sub">desc. −{fmtSoles(p.descuento)}</div>}</td>
                 <td>{nombreMetodo[p.metodo_pago]}</td>
                 <td className="mono">{fmtFechaHora(p.fecha_pago)}</td>
                 <td><Estado valor={p.estado_multa} mapa={estadoMulta} /></td>
@@ -115,6 +115,12 @@ function RegistrarPago({ multa: inicial, onClose }) {
   const [metodo, setMetodo] = useState('EFECTIVO');
   const { datos: pendientes } = useApi(() => (inicial ? Promise.resolve({ data: [] }) : getMultas('PENDIENTES')), [], []);
   const { ejecutar, enviando } = useAccion();
+
+  // Pago en efectivo: 15% de descuento sobre el monto que se salda.
+  const esEfectivo = metodo === 'EFECTIVO';
+  const montoNum = Number(monto) || 0;
+  const descuento = esEfectivo ? Math.round(montoNum * 0.15 * 100) / 100 : 0;
+  const aCobrar = Math.round((montoNum - descuento) * 100) / 100;
 
   const elegir = (id) => {
     const m = pendientes.find((x) => String(x.id) === id) || null;
@@ -152,7 +158,7 @@ function RegistrarPago({ multa: inicial, onClose }) {
             <dt>Saldo</dt><dd><b>{fmtSoles(multa.saldo)}</b></dd>
           </dl>
         )}
-        <Campo label="Monto a pagar (S/)">
+        <Campo label="Monto a saldar (S/)">
           <input type="number" step="0.01" min="0.01" max={multa ? multa.saldo : undefined} value={monto} onChange={(e) => setMonto(e.target.value)} required />
         </Campo>
         <Campo label="Método de pago">
@@ -160,6 +166,12 @@ function RegistrarPago({ multa: inicial, onClose }) {
             {metodosPago.map((m) => <option key={m} value={m}>{nombreMetodo[m]}</option>)}
           </select>
         </Campo>
+        {esEfectivo && montoNum > 0 && (
+          <dl className="detalle" style={{ gridColumn: 'span 2' }}>
+            <dt>Descuento por efectivo (15%)</dt><dd>− {fmtSoles(descuento)}</dd>
+            <dt>Efectivo a recibir</dt><dd><b>{fmtSoles(aCobrar)}</b></dd>
+          </dl>
+        )}
       </form>
     </Modal>
   );

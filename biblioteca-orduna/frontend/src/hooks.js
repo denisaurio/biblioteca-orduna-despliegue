@@ -42,7 +42,8 @@ export function useAccion() {
     try {
       const res = await funcion();
       if (mensajeOk) toast.ok(mensajeOk);
-      return res?.data ?? true;
+      // Un 204 sin cuerpo trae data === '' (falso): igual fue un exito.
+      return res?.data === '' || res?.data == null ? true : res.data;
     } catch (e) {
       toast.error(mensajeError(e));
       return null;
