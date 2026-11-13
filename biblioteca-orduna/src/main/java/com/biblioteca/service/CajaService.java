@@ -179,8 +179,10 @@ public class CajaService {
         Usuario actor = usuarioService.buscarPersonal(idActor);
         Multa multa = pago.getMulta();
         String titulo = multa.getDevolucion().getPrestamo().getEjemplar().getLibro().getTitulo();
-        String descripcion = "Multa de '" + titulo + "' (" + multa.getDevolucion().getDiasRetraso()
-                + " día(s) de retraso)";
+        String concepto = multa.getConcepto() == null || multa.getConcepto().isBlank()
+                ? multa.getDevolucion().getDiasRetraso() + " día(s) de retraso"
+                : multa.getConcepto();
+        String descripcion = "Multa de '" + titulo + "' (" + concepto + ")";
         return registrar(TipoMovimientoCaja.COBRO_MULTA, pago.getMontoPagado(), pago.getDescuento(),
                 pago.getMetodoPago(), descripcion, null, pago.getId(), multa.getDevolucion().getId(), null, actor);
     }

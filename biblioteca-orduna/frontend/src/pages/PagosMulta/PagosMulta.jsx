@@ -1,7 +1,7 @@
 // Réplica del prototipo Figma "PAGOS DE MULTA" (RF15): usuario, monto, método, fecha y estado,
 // con "+ Registrar pago". Acepta pagos parciales; el bibliotecario que cobra sale del JWT.
 import { useState } from 'react';
-import { getMultas, pagarMulta, getPagos } from '../../api/pagosMultaApi.js';
+import { getMultas, pagarMulta, getPagos, getDevolucionesSinMulta, crearMulta } from '../../api/pagosMultaApi.js';
 import { useApi, useAccion, useRefrescoTiempoReal } from '../../hooks.js';
 import SearchInput from '../../components/common/SearchInput.jsx';
 import Estado from '../../components/common/Estado.jsx';
@@ -15,12 +15,17 @@ function PagosMulta() {
   const [vista, setVista] = useState('PENDIENTES');
   const [busqueda, setBusqueda] = useState('');
   const [pagar, setPagar] = useState(null); // multa | 'elegir'
+  const [generar, setGenerar] = useState(false);
+  const [refresco, setRefresco] = useState(0);
 
   return (
     <div>
       <div className="page-head">
-        <div><h1>Pagos de multas</h1><p>Cobro de multas por retraso (RF15).</p></div>
-        <button className="btn-primary" onClick={() => setPagar('elegir')}>+ Registrar pago</button>
+        <div><h1>Pagos de multas</h1><p>Cobro y generación de multas por retraso o daño (RF15).</p></div>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <button className="btn-ghost" onClick={() => setGenerar(true)}>+ Registrar multa</button>
+          <button className="btn-primary" onClick={() => setPagar('elegir')}>+ Registrar pago</button>
+        </div>
       </div>
 
       <div className="toolbar">
@@ -34,15 +39,25 @@ function PagosMulta() {
 
       {vista === 'HISTORIAL'
         ? <HistorialPagos busqueda={busqueda} />
-        : <TablaMultas filtro={vista} busqueda={busqueda} onPagar={setPagar} version={pagar} />}
+        : <TablaMultas filtro={vista} busqueda={busqueda} onPagar={setPagar} version={pagar} refresco={refresco} />}
 
       {pagar && <RegistrarPago multa={pagar === 'elegir' ? null : pagar} onClose={() => setPagar(null)} />}
+      {generar && (
+        <RegistrarMulta
+          onClose={() => setGenerar(false)}
+          onHecho={() => { setGenerar(false); setRefresco((n) => n + 1); }}
+        />
+      )}
     </div>
   );
 }
 
-function TablaMultas({ filtro, busqueda, onPagar, version }) {
-  const { datos: multas, cargando, recargar } = useApi(() => getMultas(filtro), [filtro, version === null], []);
+function TablaMultas({ filtro, busqueda, onPagar, version, refresco }) {
+  const { datos: multas, cargando, recargar } = useApi(
+    () => getMultas(filtro),
+    [filtro, version === null, refresco],
+    []
+  );
   useRefrescoTiempoReal(['multas', 'pagos', 'devoluciones', 'cajas'], recargar);
   const lista = multas.filter((m) => `${m.nombre_lector} ${m.dni_lector}`.toLowerCase().includes(busqueda.toLowerCase()));
 
@@ -56,7 +71,12 @@ function TablaMultas({ filtro, busqueda, onPagar, version }) {
             <tr key={m.id}>
               <td className="mono">{codigo('M', m.id)}</td>
               <td>{m.nombre_lector}<div className="pick-sub">DNI {m.dni_lector}</div></td>
-              <td>{m.titulo_libro}<div className="pick-sub">{m.dias_retraso} día(s) de retraso</div></td>
+              <td>
+                {m.titulo_libro}
+                <div className="pick-sub">
+                  {m.concepto || (m.dias_retraso > 0 ? `${m.dias_retraso} día(s) de retraso` : 'Motivo no registrado')}
+                </div>
+              </td>
               <td className="mono">{fmtSoles(m.monto)}</td>
               <td className="mono">{fmtSoles(m.monto_pagado)}</td>
               <td>{m.ultimo_metodo_pago ? nombreMetodo[m.ultimo_metodo_pago] : '—'}</td>
@@ -172,6 +192,93 @@ function RegistrarPago({ multa: inicial, onClose }) {
           <dl className="detalle" style={{ gridColumn: 'span 2' }}>
             <dt>Descuento por efectivo (15%)</dt><dd>− {fmtSoles(descuento)}</dd>
             <dt>Efectivo a recibir</dt><dd><b>{fmtSoles(aCobrar)}</b></dd>
+          </dl>
+        )}
+      </form>
+    </Modal>
+  );
+}
+
+/**
+ * "+ Registrar multa": genera una multa sobre una devolución que quedó sin multa
+ * (por ejemplo, un libro dañado devuelto antes de existir el cargo por daño).
+ * Solo crea la deuda; el dinero se cobra con "+ Registrar pago".
+ */
+function RegistrarMulta({ onClose, onHecho }) {
+  const { datos: devoluciones, cargando } = useApi(() => getDevolucionesSinMulta(), [], []);
+  const [idDevolucion, setIdDevolucion] = useState('');
+  const [monto, setMonto] = useState('');
+  const [concepto, setConcepto] = useState('');
+  const { ejecutar, enviando } = useAccion();
+  const lista = devoluciones || [];
+  const elegida = lista.find((d) => String(d.id_devolucion) === idDevolucion);
+
+  const elegir = (id) => {
+    setIdDevolucion(id);
+    const d = lista.find((x) => String(x.id_devolucion) === id);
+    // Sugerencia: días de retraso × la tarifa que se copió en el préstamo.
+    const sugerido = d && d.dias_retraso > 0 && d.tarifa_multa_diaria != null
+      ? (Number(d.dias_retraso) * Number(d.tarifa_multa_diaria)).toFixed(2)
+      : '';
+    setMonto(sugerido);
+    setConcepto(d && d.dias_retraso > 0 ? `Retraso (${d.dias_retraso} día(s))` : '');
+  };
+
+  const guardar = async (e) => {
+    e.preventDefault();
+    const r = await ejecutar(
+      () => crearMulta({
+        id_devolucion: Number(idDevolucion),
+        monto: Number(monto),
+        concepto: concepto.trim() || null,
+      }),
+      'Multa registrada'
+    );
+    if (r) onHecho();
+  };
+
+  return (
+    <Modal
+      titulo="Registrar multa"
+      subtitulo="Genera una multa para una devolución que quedó sin multa. El cobro se hace después con «Registrar pago»."
+      onClose={onClose}
+      pie={<><button className="btn-ghost" onClick={onClose}>Cancelar</button>
+        <button className="btn-primary" form="form-multa" disabled={enviando || !idDevolucion}>
+          {enviando ? 'Registrando...' : 'Registrar multa'}
+        </button></>}
+    >
+      <form id="form-multa" className="form-grid" onSubmit={guardar}>
+        <Campo label="Devolución" ancho={2}>
+          <select value={idDevolucion} onChange={(e) => elegir(e.target.value)} required>
+            <option value="">{cargando ? 'Cargando...' : 'Seleccione una devolución...'}</option>
+            {lista.map((d) => (
+              <option key={d.id_devolucion} value={d.id_devolucion}>
+                {codigo('P', d.id_prestamo)} — {d.nombre_lector} — {d.titulo_libro}
+                {d.dias_retraso > 0 ? ` (${d.dias_retraso} día(s) de retraso)` : ''}
+              </option>
+            ))}
+          </select>
+        </Campo>
+        {!cargando && lista.length === 0 && (
+          <div className="info-box" style={{ gridColumn: 'span 2', margin: 0 }}>
+            Todas las devoluciones registradas ya tienen multa.
+          </div>
+        )}
+        <Campo label="Monto de la multa (S/)">
+          <input type="number" step="0.01" min="0.01" value={monto}
+                 onChange={(e) => setMonto(e.target.value)} required />
+        </Campo>
+        <Campo label="Motivo" ayuda="Ej.: libro dañado, libro perdido, otro cargo aprobado.">
+          <input value={concepto} onChange={(e) => setConcepto(e.target.value)}
+                 maxLength={120} placeholder="Multa manual" />
+        </Campo>
+        {elegida && (
+          <dl className="detalle" style={{ gridColumn: 'span 2' }}>
+            <dt>Lector</dt><dd>{elegida.nombre_lector} · DNI {elegida.dni_lector}</dd>
+            <dt>Libro</dt><dd>{elegida.titulo_libro} ({elegida.codigo_inventario})</dd>
+            <dt>Devuelto</dt><dd>{fmtFechaHora(elegida.fecha_devolucion)}</dd>
+            <dt>Días de retraso</dt><dd>{elegida.dias_retraso}</dd>
+            <dt>Precio de la copia</dt><dd>{elegida.precio_copia != null ? fmtSoles(elegida.precio_copia) : '—'}</dd>
           </dl>
         )}
       </form>

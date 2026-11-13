@@ -253,7 +253,8 @@ Ejemplo del flujo real de "registrar un prestamo":
                         fecha_prestamo, fecha_devolucion_esperada,
                         tarifa_multa_diaria, precio_copia, estado.
   devoluciones          Cierre del prestamo (1:1 con prestamos): fecha, dias_retraso.
-  multas                Deuda generada (1:1 con devoluciones): monto, monto_pagado, estado.
+  multas                Deuda generada (1:1 con devoluciones): monto, monto_pagado,
+                        estado, concepto (motivo legible de la multa).
   pagos_multa           Cobros: monto, metodo_pago, fecha, bibliotecario que cobra.
   reservas              Cola FIFO: libro, lector, ejemplar_asignado, fechas, estado.
   sanciones              Motivo, fecha_inicio, fecha_fin, fecha_levantamiento.
@@ -522,11 +523,19 @@ CORS
         Si se devuelve a tiempo, cero.
       - Si el prestamo era ABIERTO, los dias de retraso son SIEMPRE cero, aunque
         pase el tiempo. Esa es una regla del documento del proyecto.
-      - Si hay retraso, se crea la multa:
-            monto = dias de retraso x tarifa
+      - Si hay retraso, el monto por retraso es:
+            dias de retraso x tarifa
         La tarifa se lee del PRESTAMO (la copia que se hizo al prestar), nunca
         de la configuracion actual. Por eso cambiar la tarifa despues no altera
         multas ya calculadas.
+      - Si el libro vuelve DANADO, PERDIDO o BAJA se suma un cargo por dano o
+        perdida. El formulario sugiere el 50% del precio de la copia si esta
+        danado y el 100% si esta perdido, pero el bibliotecario puede cambiarlo
+        (0 = no cobrar). El cargo NO se cobra al devolver: se suma a la multa y
+        se paga despues en "Pagos de multas".
+      - La devolucion genera UNA SOLA multa con la suma de retraso + cargo. El
+        motivo queda guardado en multas.concepto, por ejemplo:
+        "Retraso (3 dias)", "Libro danado" o "Retraso (2 dias) + libro perdido".
       - Se notifica al lector de la multa pendiente (si el interruptor
         aviso_multa esta activo).
       - Si el ejemplar vuelve DISPONIBLE, entra a la cola de reservas.
@@ -572,6 +581,16 @@ CORS
       - No puede superar el saldo pendiente.
       - Si el saldo queda en 0, la multa pasa a PAGADA.
       - Si sobra saldo, pasa a PARCIAL.
+    REGISTRAR MULTA MANUAL. El boton "+ Registrar multa" permite crear una
+    multa sobre una devolucion que quedo SIN multa (por ejemplo, libros
+    danados devueltos antes de que existiera el cargo por dano) o para
+    cualquier cargo aprobado por el personal.
+      - Se elige una devolucion de la lista (GET /api/multas/sin-generar),
+        se escribe el monto y el motivo.
+      - El motivo queda en multas.concepto; si se deja vacio, "Multa manual".
+      - Solo crea la DEUDA: no entra dinero a la caja. El cobro se hace
+        despues con "+ Registrar pago".
+      - Una devolucion solo puede tener una multa (la relacion es 1:1).
     DESCUENTO POR EFECTIVO. Pagar en efectivo da 15% de descuento sobre el monto
     que se salda. El cajero digita la deuda que quiere liquidar (por ejemplo
     S/ 10.00) y la biblioteca cobra solo el 85%: entran S/ 8.50 a la caja y los
@@ -952,7 +971,12 @@ Todos los demas endpoints de listado devuelven el arreglo completo, sin paginar.
   1.  Un prestamo es de FECHA_FIJA o ABIERTO.
   2.  Un prestamo ABIERTO nunca genera multa, nunca.
   3.  La multa es dias de retraso por la tarifa, y la tarifa se COPIA en el
-      prestamo: cambiar la tarifa despues no altera lo ya calculado.
+      prestamo: cambiar la tarifa despues no altera lo ya calculado. Si el
+      libro vuelve DANADO, PERDIDO o BAJA se suma un CARGO por dano/perdida
+      que el bibliotecario confirma o edita al devolver (sugerencia: 50% del
+      precio de la copia si esta danado, 100% si esta perdido; 0 = no
+      cobrar). La devolucion genera UNA sola multa con retraso + cargo y
+      guarda el motivo en multas.concepto.
   4.  Solo se presta si hay un ejemplar DISPONIBLE. Si no hay, se reserva.
   5.  Solo se reserva un libro sin ejemplares disponibles.
   6.  Las reservas son FIFO estricto (fecha de reserva, luego id).
@@ -995,6 +1019,8 @@ Todos los demas endpoints de listado devuelven el arreglo completo, sin paginar.
       contado contra el esperado).
   29. Al devolver un prestamo (de fecha fija O abierto) se cobra el PRECIO DE
       LA COPIA. La multa se cobra aparte, con su 15% de descuento en efectivo.
+      Si el libro vuelve danado o perdido, el cargo por dano/perdida tambien
+      va a la multa (nunca al cobro inmediato).
   30. No se cobra sin caja abierta: el backend rechaza el cobro. La devolucion
       de una copia sin precio si se registra (no hay nada que cobrar).
   31. El pago con Yape es QR estatico + COMPROBANTE: el personal aprueba o

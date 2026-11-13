@@ -23,6 +23,14 @@ public class Multa {
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal monto;
 
+    /**
+     * Motivo de la multa, legible para el personal y el lector:
+     * "Retraso (3 días)", "Libro dañado", "Retraso (2 días) + libro perdido", "Multa manual".
+     * Se guarda al generarla para que el motivo no dependa del estado actual del ejemplar.
+     */
+    @Column(length = 120)
+    private String concepto;
+
     /** Suma de los pagos registrados (permite pagos parciales). */
     @Column(name = "monto_pagado", nullable = false, precision = 10, scale = 2)
     private BigDecimal montoPagado = BigDecimal.ZERO;
@@ -42,6 +50,8 @@ public class Multa {
     public void setUsuario(Usuario usuario) { this.usuario = usuario; }
     public BigDecimal getMonto() { return monto; }
     public void setMonto(BigDecimal monto) { this.monto = monto; }
+    public String getConcepto() { return concepto; }
+    public void setConcepto(String concepto) { this.concepto = concepto; }
     public BigDecimal getMontoPagado() { return montoPagado; }
     public void setMontoPagado(BigDecimal montoPagado) { this.montoPagado = montoPagado; }
     public BigDecimal getSaldo() { return monto.subtract(montoPagado); }

@@ -7,6 +7,23 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import { mensajeError } from '../../api/axiosClient.js';
 import './Login.css';
 
+const LOGO_URL = 'https://pub-4dfe0114a0ae4a4087eea497277d437a.r2.dev/WhatsApp%20Image%202026-11-13%20at%2011.50.58%20AM.jpeg';
+
+/** Logo de la biblioteca, con el libro SVG como respaldo si la imagen no carga. */
+function LogoBiblioteca({ className = '' }) {
+  const [error, setError] = useState(false);
+  if (error) {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"
+           className={className} aria-hidden="true">
+        <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5V5.5Z" />
+        <path d="M8.5 8h7M8.5 11.5h5" />
+      </svg>
+    );
+  }
+  return <img src={LOGO_URL} alt="Biblioteca Orduña" className={className} onError={() => setError(true)} />;
+}
+
 function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -56,10 +73,7 @@ function Login() {
 
         <div className="login-visual-content">
           <span className="login-logo-badge">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="login-book-icon">
-              <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5V5.5Z" />
-              <path d="M8.5 8h7M8.5 11.5h5" />
-            </svg>
+            <LogoBiblioteca className="login-logo-img" />
           </span>
           <h1>Biblioteca Orduña</h1>
           <p>Un espacio para descubrir, aprender y compartir</p>
@@ -77,9 +91,9 @@ function Login() {
       <div className="login-form-side">
         <form className="login-form" onSubmit={handleSubmit}>
           <div className="login-form-brand">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
-              <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5V5.5Z" />
-            </svg>
+            <span className="login-form-brand-logo">
+              <LogoBiblioteca className="login-brand-img" />
+            </span>
             Biblioteca Orduña
           </div>
 

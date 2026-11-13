@@ -8,7 +8,8 @@ import java.time.LocalDateTime;
 /**
  * Resultado de registrar una devolución.
  *
- * Si no hubo retraso, id_multa y monto_multa vienen en null.
+ * Si no hubo retraso ni cargo por daño/pérdida, id_multa y monto_multa vienen en null.
+ * concepto_multa explica el motivo ("Retraso (3 días)", "Libro dañado"...).
  * monto_cobrado: lo que se cobró por el precio de la copia (null si la copia no tiene precio).
  * id_caja_movimiento: el movimiento de caja que dejó el cobro.
  */
@@ -20,6 +21,8 @@ public record DevolucionResponseDTO(
         String observaciones,
         @JsonProperty("id_multa") Long idMulta,
         @JsonProperty("monto_multa") BigDecimal montoMulta,
+        /** Motivo de la multa generada (null si no hubo). */
+        @JsonProperty("concepto_multa") String conceptoMulta,
         /** Si el ejemplar quedó apartado para la siguiente reserva de la cola. */
         @JsonProperty("id_reserva_notificada") Long idReservaNotificada,
         /** Precio de la copia cobrado al devolver (null si la copia no tiene precio). */

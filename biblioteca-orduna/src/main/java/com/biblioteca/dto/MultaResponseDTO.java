@@ -13,6 +13,8 @@ public record MultaResponseDTO(
         @JsonProperty("dni_lector") String dniLector,
         @JsonProperty("titulo_libro") String tituloLibro,
         @JsonProperty("dias_retraso") int diasRetraso,
+        /** Motivo: "Retraso (3 días)", "Libro dañado", "Multa manual"... */
+        String concepto,
         BigDecimal monto,
         @JsonProperty("monto_pagado") BigDecimal montoPagado,
         BigDecimal saldo,

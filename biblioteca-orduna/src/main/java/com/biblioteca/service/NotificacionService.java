@@ -201,7 +201,9 @@ public class NotificacionService {
     }
 
     static String mensajeMulta(Multa m) {
-        return "Tienes una multa pendiente de S/ " + m.getSaldo()
+        String motivo = m.getConcepto() == null || m.getConcepto().isBlank()
+                ? "" : " (" + m.getConcepto() + ")";
+        return "Tienes una multa pendiente de S/ " + m.getSaldo() + motivo
                 + ". No podrás realizar nuevos préstamos hasta pagarla.";
     }
 

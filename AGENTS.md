@@ -279,6 +279,16 @@ Estas reglas dan sentido al sistema. Si cambias una, cambia también
 1. Un préstamo es `FECHA_FIJA` o `ABIERTO`.
 2. Un préstamo `ABIERTO` **nunca** genera multa, por mucho que pase el tiempo.
 3. Multa = días de retraso × tarifa; la tarifa es la **copiada en el préstamo**.
+   Si el libro vuelve `DANADO`, `PERDIDO` o `BAJA` se suma un **cargo por
+   daño/pérdida** que decide el bibliotecario en el formulario de devolución
+   (el frontend sugiere 50% del precio de la copia si está dañado y 100% si
+   está perdido, y permite editarlo; 0 = no cobrar). La devolución genera
+   **una sola** multa con el retraso + el cargo, y guarda el motivo en
+   `multas.concepto` ("Retraso (3 días)", "Libro dañado",
+   "Retraso (2 días) + libro perdido"). El cargo **no** se cobra al devolver:
+   queda como deuda y se paga en "Pagos de multas". Una devolución que quedó
+   sin multa puede recibir una **multa manual** desde "Pagos de multas"
+   (`POST /api/multas`): solo crea la deuda, nunca cobra en el acto.
 4. Solo se presta si hay un ejemplar `DISPONIBLE`; si no, se reserva.
 5. Solo se reserva un libro que **no** tenga ejemplares disponibles.
 6. Las reservas son FIFO (fecha de reserva, luego id); al liberar un ejemplar

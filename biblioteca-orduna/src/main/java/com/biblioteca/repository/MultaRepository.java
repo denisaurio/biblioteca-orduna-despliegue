@@ -34,4 +34,7 @@ public interface MultaRepository extends JpaRepository<Multa, Long> {
     List<Multa> findByUsuarioIdOrderByFechaGeneracionDesc(Long idUsuario);
 
     List<Multa> findByFechaGeneracionBetweenOrderByFechaGeneracionAsc(LocalDateTime desde, LocalDateTime hasta);
+
+    /** Una devolución solo puede tener una multa (la relación es 1:1). */
+    boolean existsByDevolucionId(Long idDevolucion);
 }

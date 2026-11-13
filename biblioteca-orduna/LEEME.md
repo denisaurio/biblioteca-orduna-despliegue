@@ -261,7 +261,13 @@ libro o de la copia después no altera los préstamos ya hechos. Vale igual en l
 | Método | Ruta | Quién |
 |---|---|---|
 | GET | `/api/prestamos?estado=ACTIVOS` (tabla con `en_plazo` y `dias_retraso`) | 🧑‍💼 |
-| POST | `/api/devoluciones` `{"id_prestamo":1,"observaciones":"...","estado_ejemplar":"DISPONIBLE"}` | 🧑‍💼 |
+| POST | `/api/devoluciones` `{"id_prestamo":1,"observaciones":"...","estado_ejemplar":"DANADO","cargo_danado":15.00}` | 🧑‍💼 |
+
+`cargo_danado` es opcional: monto extra que se suma a la multa cuando el ejemplar vuelve
+`DANADO`, `PERDIDO` o `BAJA` (el frontend sugiere 50% del precio de la copia si está dañado y
+100% si está perdido, y deja editarlo). No se cobra al devolver: queda como deuda en
+"Pagos de multas". La devolución genera **una sola** multa con retraso + cargo y guarda el
+motivo en `multas.concepto`.
 
 ### Reservas (RF09)
 | Método | Ruta | Quién |
@@ -276,6 +282,8 @@ libro o de la copia después no altera los préstamos ya hechos. Vale igual en l
 | Método | Ruta | Quién |
 |---|---|---|
 | GET | `/api/multas?estado=PENDIENTES\|PAGADAS\|TODAS` | 🧑‍💼 |
+| GET | `/api/multas/sin-generar` (devoluciones que aún no tienen multa) | 🧑‍💼 |
+| POST | `/api/multas` `{"id_devolucion":1,"monto":10.00,"concepto":"Libro dañado"}` (multa manual: solo crea la deuda, no cobra) | 🧑‍💼 |
 | POST | `/api/multas/{id}/pagar` `{"monto_pagado":1.00,"metodo_pago":"EFECTIVO"}` | 🧑‍💼 |
 | GET | `/api/multas/pagos?desde=&hasta=` (auditoría) | 🧑‍💼 |
 | GET | `/api/mi/multas` · `/api/mi/prestamos` | 👤 |
@@ -359,6 +367,8 @@ proxies como Traefik/Nginx no corten la conexión.
 |---|---|
 | Préstamo con fecha fija o abierto; el abierto nunca genera multa | `PrestamoService`, `DevolucionService` |
 | Multa = días de retraso × tarifa; la tarifa se guarda en el préstamo, así un cambio posterior no es retroactivo | `Prestamo.tarifaMultaDiaria`, `configuracion_multas` versionada |
+| Si el libro vuelve `DANADO`/`PERDIDO`/`BAJA`, se suma un cargo editable (50 % del precio de la copia si está dañado, 100 % si está perdido); una sola multa con retraso + cargo y el motivo en `concepto` | `DevolucionService.registrarDevolucion`, `NuevaDevolucionDTO.cargo_danado` |
+| Una devolución sin multa puede recibir una multa manual; solo crea deuda y nunca cobra en el acto | `DevolucionService.registrarMultaManual`, `POST /api/multas` |
 | El precio del ejemplar se copia al préstamo, igual en fecha fija y abierto | `Prestamo.precioCopia`, `Ejemplar.precio` |
 | Solo se presta si hay ejemplar disponible; si no, se reserva | `PrestamoService`, `ReservaService` |
 | Solo se reserva un libro sin ejemplares disponibles | `ReservaService.crearReserva` |

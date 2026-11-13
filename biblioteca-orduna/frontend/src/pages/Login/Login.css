@@ -69,10 +69,10 @@
 .login-logo-badge {
   display: inline-grid;
   place-items: center;
-  width: 74px;
-  height: 74px;
-  margin-bottom: 20px;
-  border-radius: 20px;
+  width: 104px;
+  height: 104px;
+  margin-bottom: 24px;
+  border-radius: 26px;
   color: #E4B25C;
   background: rgba(217, 178, 95, 0.1);
   border: 1px solid rgba(217, 178, 95, 0.4);
@@ -85,6 +85,18 @@
 }
 
 .login-book-icon { width: 40px; height: 40px; }
+
+/* Logo de la biblioteca: la imagen del usuario dentro del badge, con el libro
+   SVG como respaldo si la imagen no carga (misma clase, mismo encuadre). */
+.login-logo-badge { padding: 8px; background: #FFFDF8; }
+.login-logo-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 20px;
+}
+.login-logo-badge svg.login-logo-img { color: #0C2E50; }
 
 .login-visual-content h1 {
   font-family: var(--font-display);
@@ -216,6 +228,21 @@
   color: #F4EFE2;
 }
 .login-form-brand svg { width: 24px; height: 24px; color: #E4B25C; }
+
+/* Versión pequeña del logo para la cabecera de móvil */
+.login-form-brand-logo {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 38px;
+  height: 38px;
+  padding: 4px;
+  border-radius: 11px;
+  background: #FFFDF8;
+  border: 1px solid rgba(217, 178, 95, 0.55);
+}
+.login-brand-img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.login-form-brand-logo svg.login-brand-img { width: 100%; height: 100%; color: #0C2E50; }
 
 .login-form label {
   display: block;

@@ -1,6 +1,8 @@
 package com.biblioteca.controller;
 
+import com.biblioteca.dto.DevolucionSinMultaDTO;
 import com.biblioteca.dto.MultaResponseDTO;
+import com.biblioteca.dto.NuevaMultaDTO;
 import com.biblioteca.dto.PagoMultaDTO;
 import com.biblioteca.dto.PagoMultaResponseDTO;
 import com.biblioteca.security.UsuarioAutenticado;
@@ -41,6 +43,24 @@ public class MultaController {
     public PagoMultaResponseDTO pagar(@PathVariable Long idMulta, @Valid @RequestBody PagoMultaDTO datos,
                                       @AuthenticationPrincipal UsuarioAutenticado bibliotecario) {
         return devolucionService.registrarPagoMulta(idMulta, datos, bibliotecario.id());
+    }
+
+    /** Devoluciones sin multa: alimentan el selector de "+ Registrar multa". */
+    @GetMapping("/sin-generar")
+    public List<DevolucionSinMultaDTO> sinGenerar() {
+        return devolucionService.listarDevolucionesSinMulta();
+    }
+
+    /**
+     * RF15 - POST /api/multas  ("+ Registrar multa")
+     * Body: {"id_devolucion":1,"monto":5.00,"concepto":"Libro dañado"}
+     * Genera una multa manual sobre una devolución que no tenía. No cobra: solo crea la deuda.
+     */
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public MultaResponseDTO crear(@Valid @RequestBody NuevaMultaDTO datos,
+                                  @AuthenticationPrincipal UsuarioAutenticado actor) {
+        return devolucionService.registrarMultaManual(datos, actor.id());
     }
 
     /** GET /api/multas/pagos?desde=2026-10-01&hasta=2026-10-31 - historial de pagos (auditoría) */
