@@ -20,6 +20,19 @@ export function AuthProvider({ children }) {
     return nueva.usuario;
   };
 
+  /**
+   * "Entrar como invitado": crea una sesión SOLO en memoria, sin token y sin
+   * guardarla en localStorage. Es un modo visual para conocer el sistema; el
+   * backend nunca recibe este rol.
+   */
+  const entrarComoInvitado = () => {
+    setSesion({
+      invitado: true,
+      token: null,
+      usuario: { id: null, nombre: 'Invitado', email: '', rol: 'INVITADO' },
+    });
+  };
+
   const logout = () => {
     borrarSesion();
     setSesion(null);
@@ -27,7 +40,8 @@ export function AuthProvider({ children }) {
 
   /** Actualiza el nombre mostrado después de editar el perfil. */
   const actualizarNombre = (nombre) => {
-    if (!sesion) return;
+    // El invitado nunca se guarda: su sesión vive solo en memoria.
+    if (!sesion || sesion.invitado) return;
     const nueva = { ...sesion, usuario: { ...sesion.usuario, nombre } };
     guardarSesion(nueva, !!localStorage.getItem('biblioteca_sesion'));
     setSesion(nueva);
@@ -35,12 +49,15 @@ export function AuthProvider({ children }) {
 
   const usuario = sesion?.usuario || null;
   const rol = usuario?.rol;
+  const esInvitado = sesion?.invitado === true || rol === 'INVITADO';
   const valor = {
     usuario,
     token: sesion?.token || null,
     login,
     logout,
+    entrarComoInvitado,
     actualizarNombre,
+    esInvitado,
     esLector: rol === 'LECTOR',
     esAdmin: rol === 'BIBLIOTECARIO' || rol === 'GERENTE', // bibliotecario o gerente (bloque Administración)
     esGerente: rol === 'GERENTE',

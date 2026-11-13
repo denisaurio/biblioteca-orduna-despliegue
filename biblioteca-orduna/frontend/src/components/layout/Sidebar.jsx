@@ -29,6 +29,22 @@ const I = {
 };
 
 function menuPara(rol) {
+  // El invitado ve el menú de lector (para que conozca la app); al hacer clic,
+  // AppLayout intercepta y muestra el aviso. Nunca ve el bloque de Administración.
+  if (rol === 'INVITADO') {
+    return {
+      general: [
+        { to: '/inicio', label: 'Inicio', icon: I.inicio },
+        { to: '/libros', label: 'Libros', icon: I.libros },
+        { to: '/autores', label: 'Autores', icon: I.autores },
+        { to: '/prestamos', label: 'Mis préstamos y multas', icon: I.prestamos },
+        { to: '/reservas', label: 'Mis reservas', icon: I.reservas },
+        { to: '/mis-libros-virtuales', label: 'Mis libros virtuales', icon: I.virtual },
+        { to: '/avisos', label: 'Avisos', icon: I.avisos },
+      ],
+      admin: [],
+    };
+  }
   if (rol === 'LECTOR') {
     return {
       general: [

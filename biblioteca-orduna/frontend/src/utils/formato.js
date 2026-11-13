@@ -52,7 +52,7 @@ export function codigo(prefijo, id) {
   return `${prefijo}${String(id ?? '').padStart(3, '0')}`;
 }
 
-export const nombreRol = { LECTOR: 'Lector', BIBLIOTECARIO: 'Bibliotecario', GERENTE: 'Gerente' };
+export const nombreRol = { LECTOR: 'Lector', BIBLIOTECARIO: 'Bibliotecario', GERENTE: 'Gerente', INVITADO: 'Invitado' };
 
 export const nombreTipoUsuario = { ESTUDIANTE: 'Estudiante', DOCENTE: 'Docente', EXTERNO: 'Externo' };
 

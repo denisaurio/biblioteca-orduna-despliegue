@@ -15,7 +15,7 @@ const ESTADO_TIEMPO_REAL = {
 };
 
 function Topbar() {
-  const { usuario, logout } = useAuth();
+  const { usuario, logout, esInvitado } = useAuth();
   const { estado } = useRealtime();
   const navigate = useNavigate();
   const [busqueda, setBusqueda] = useState('');
@@ -24,13 +24,15 @@ function Topbar() {
   const menuRef = useRef(null);
 
   // Contador de avisos sin leer: al entrar y cada 60 segundos.
+  // El invitado no tiene cuenta: no se piden avisos (evita un 401 innecesario).
   useEffect(() => {
+    if (esInvitado) return undefined;
     const cargar = () => contarNoLeidas().then(({ data }) => setNoLeidas(data.total)).catch(() => {});
     cargar();
     const t = setInterval(cargar, 60000);
     window.addEventListener('avisos-actualizados', cargar);
     return () => { clearInterval(t); window.removeEventListener('avisos-actualizados', cargar); };
-  }, []);
+  }, [esInvitado]);
 
   useEffect(() => {
     const cerrar = (e) => menuRef.current && !menuRef.current.contains(e.target) && setMenu(false);
@@ -63,20 +65,39 @@ function Topbar() {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M6 8a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6Z" /><path d="M10 19a2 2 0 0 0 4 0" /></svg>
           {noLeidas > 0 && <span className="campana-num">{noLeidas > 99 ? '99+' : noLeidas}</span>}
         </button>
-        <div className="topbar-user" ref={menuRef} onClick={() => setMenu(!menu)}>
-          <div className="avatar">{iniciales(usuario?.nombre)}</div>
-          <div className="who">
-            <div className="name">{usuario?.nombre}</div>
-            <div className="role">{nombreRol[usuario?.rol]}</div>
-          </div>
-          <span className="caret">▾</span>
-          {menu && (
-            <div className="user-menu card">
-              <button onClick={() => navigate('/perfil')}>Mi perfil</button>
-              <button onClick={salir}>Cerrar sesión</button>
+        {esInvitado ? (
+          <div className="topbar-user invitado-user">
+            <div className="avatar">{iniciales(usuario?.nombre)}</div>
+            <div className="who">
+              <div className="name">{usuario?.nombre}</div>
+              <div className="role">{nombreRol[usuario?.rol]}</div>
             </div>
-          )}
-        </div>
+            {/* Único botón que el invitado sí puede usar. */}
+            <button
+              type="button"
+              className="topbar-salir"
+              data-invitado-permitido="true"
+              onClick={salir}
+            >
+              Salir
+            </button>
+          </div>
+        ) : (
+          <div className="topbar-user" ref={menuRef} onClick={() => setMenu(!menu)}>
+            <div className="avatar">{iniciales(usuario?.nombre)}</div>
+            <div className="who">
+              <div className="name">{usuario?.nombre}</div>
+              <div className="role">{nombreRol[usuario?.rol]}</div>
+            </div>
+            <span className="caret">▾</span>
+            {menu && (
+              <div className="user-menu card">
+                <button onClick={() => navigate('/perfil')}>Mi perfil</button>
+                <button onClick={salir}>Cerrar sesión</button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

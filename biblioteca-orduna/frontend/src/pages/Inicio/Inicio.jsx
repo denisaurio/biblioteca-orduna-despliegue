@@ -1,10 +1,12 @@
 // Réplica del prototipo Figma "INICIO".
 // - Bibliotecario/gerente: KPIs en tiempo real (GET /api/dashboard) + libros destacados.
 // - Lector: versión reducida (GET /api/mi/panel): sus préstamos, reservas, deuda y avisos.
+// - Invitado (solo visual): catálogo público (GET /api/libros/destacados), sin datos privados.
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { getDashboard, getPanel } from '../../api/miCuentaApi.js';
+import { getDestacados } from '../../api/librosApi.js';
 import { useApi, useRefrescoTiempoReal } from '../../hooks.js';
 import StatCard from '../../components/common/StatCard.jsx';
 import Estado from '../../components/common/Estado.jsx';
@@ -15,10 +17,13 @@ import { fmtFecha, fmtSoles } from '../../utils/formato.js';
 import './Inicio.css';
 
 function Inicio() {
-  const { usuario, esLector } = useAuth();
+  const { usuario, esLector, esInvitado } = useAuth();
   const navigate = useNavigate();
   const [busqueda, setBusqueda] = useState('');
-  const { datos, cargando, recargar } = useApi(() => (esLector ? getPanel() : getDashboard()), [esLector]);
+  const { datos, cargando, recargar } = useApi(
+    () => (esInvitado ? getDestacados() : esLector ? getPanel() : getDashboard()),
+    [esLector, esInvitado],
+  );
   // El panel son cifras del día: cualquier cambio en la biblioteca puede moverlas.
   useRefrescoTiempoReal(['*'], recargar);
 
@@ -27,6 +32,74 @@ function Inicio() {
     e.preventDefault();
     navigate(`/libros?q=${encodeURIComponent(busqueda.trim())}`);
   };
+
+  // ---------- Invitado: solo el catálogo público, sin pedir nada privado ----------
+  if (esInvitado) {
+    return (
+      <div>
+        <div className="hero-banner hero-invitado">
+          <div className="hero-text">
+            <h1>Bienvenido a la Biblioteca Orduña</h1>
+            <p>
+              Estás explorando como invitado. Puedes conocer el catálogo desde aquí;
+              para pedir libros o reservar, un bibliotecario te debe crear tu cuenta.
+            </p>
+          </div>
+        </div>
+
+        {cargando && <Cargando />}
+
+        {!cargando && (
+          <>
+            <div className="block-head">
+              <h3>Libros destacados</h3>
+              <span className="etiqueta-invitado">Vista de invitado · solo lectura</span>
+            </div>
+            {Array.isArray(datos) && datos.length > 0 ? (
+              <div className="destacados-grid">
+                {datos.slice(0, 4).map((libro) => (
+                  <div className="libro-card" key={libro.id}>
+                    <Portada libro={libro} alto={120} />
+                    <div className="libro-info">
+                      <div className="libro-title">{libro.titulo}</div>
+                      <div className="libro-author">{libro.autores.map((a) => a.nombre).join(', ')}</div>
+                      <Estado valor={libro.estado} mapa={estadoLibro} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="card"><Vacio texto="Aún no hay libros en el catálogo." /></div>
+            )}
+
+            <div className="invitado-pasos">
+              <div className="invitado-paso card">
+                <span className="invitado-paso-num">1</span>
+                <div>
+                  <b>Ven a la biblioteca</b>
+                  <p>Trae tu DNI y acércate al mostrador de atención.</p>
+                </div>
+              </div>
+              <div className="invitado-paso card">
+                <span className="invitado-paso-num">2</span>
+                <div>
+                  <b>Pide tu cuenta de lector</b>
+                  <p>Un bibliotecario registrará tus datos y te dará tu contraseña.</p>
+                </div>
+              </div>
+              <div className="invitado-paso card">
+                <span className="invitado-paso-num">3</span>
+                <div>
+                  <b>Ya puedes pedir libros</b>
+                  <p>Inicia sesión para reservar, pedir prestado y ver tus avisos.</p>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div>

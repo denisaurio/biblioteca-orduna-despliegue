@@ -1,96 +1,512 @@
+/* =====================================================================
+   Pantalla de login: noche de biblioteca (azul marino profundo + dorado),
+   panel visual animado y formulario. Estas clases también las usa Registro.jsx.
+   ===================================================================== */
+
 .login-screen {
+  position: relative;
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  background: var(--card);
+  grid-template-columns: 1.05fr 1fr;
+  background:
+    radial-gradient(circle at 12% 8%, rgba(217, 178, 95, 0.12), transparent 38%),
+    radial-gradient(circle at 88% 92%, rgba(217, 178, 95, 0.08), transparent 42%),
+    linear-gradient(155deg, #051627 0%, #04101F 55%, #030B16 100%);
+  color: #F4EFE2;
 }
+
+/* ---------- Panel visual ---------- */
 
 .login-visual {
   position: relative;
-  background: linear-gradient(165deg, #0B2B4A 0%, #15385A 60%, #1C4568 100%);
-  display: flex; align-items: center; justify-content: center;
+  background:
+    radial-gradient(circle at 30% 12%, rgba(217, 178, 95, 0.16), transparent 45%),
+    linear-gradient(165deg, #0C2E50 0%, #08223D 55%, #061A30 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
   margin: 28px;
-  border-radius: 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(217, 178, 95, 0.22);
+  box-shadow:
+    0 30px 70px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  animation: login-visual-entra 0.6s ease both;
 }
+@keyframes login-visual-entra {
+  from { opacity: 0; transform: translateY(10px) scale(0.99); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 .login-visual-overlay {
-  position: absolute; inset: 0;
-  background-image: radial-gradient(circle at 25% 20%, rgba(217,201,138,0.18), transparent 45%),
-                     radial-gradient(circle at 80% 80%, rgba(217,201,138,0.1), transparent 50%);
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(circle at 25% 20%, rgba(217, 178, 95, 0.18), transparent 45%),
+    radial-gradient(circle at 80% 80%, rgba(217, 178, 95, 0.1), transparent 50%);
+  animation: login-luz 9s ease-in-out infinite alternate;
 }
+@keyframes login-luz {
+  from { opacity: 0.75; transform: scale(1); }
+  to   { opacity: 1;    transform: scale(1.06); }
+}
+
 .login-visual-content {
   position: relative;
+  z-index: 2;
   text-align: center;
-  color: #fff;
+  color: #FFFDF8;
   padding: 40px;
-  max-width: 360px;
+  max-width: 380px;
+  animation: login-entra-arriba 0.7s 0.15s ease both;
 }
-.login-book-icon { width: 46px; height: 46px; margin-bottom: 22px; color: #D9C98A; }
+@keyframes login-entra-arriba {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.login-logo-badge {
+  display: inline-grid;
+  place-items: center;
+  width: 74px;
+  height: 74px;
+  margin-bottom: 20px;
+  border-radius: 20px;
+  color: #E4B25C;
+  background: rgba(217, 178, 95, 0.1);
+  border: 1px solid rgba(217, 178, 95, 0.4);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.35), 0 0 30px rgba(217, 178, 95, 0.12);
+  animation: login-logo-flota 4.5s ease-in-out infinite;
+}
+@keyframes login-logo-flota {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-7px); }
+}
+
+.login-book-icon { width: 40px; height: 40px; }
+
 .login-visual-content h1 {
   font-family: var(--font-display);
-  font-size: 32px;
+  font-size: 33px;
   font-weight: 600;
   margin: 0 0 14px;
+  color: #FFFDF8;
 }
 .login-visual-content p {
   font-size: 15px;
-  color: rgba(255,255,255,0.75);
+  color: rgba(244, 239, 226, 0.72);
   line-height: 1.6;
   margin: 0;
 }
 
-.login-form-side { display: flex; align-items: center; justify-content: center; padding: 24px; }
-.login-form { width: 100%; max-width: 360px; }
+.login-beneficios {
+  list-style: none;
+  margin: 26px auto 0;
+  padding: 0;
+  display: grid;
+  gap: 11px;
+  text-align: left;
+  max-width: 265px;
+}
+.login-beneficios li {
+  position: relative;
+  padding-left: 24px;
+  font-size: 13px;
+  color: rgba(244, 239, 226, 0.72);
+}
+.login-beneficios li::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  margin-top: -3.5px;
+  border-radius: 50%;
+  background: #E4B25C;
+  box-shadow: 0 0 0 3px rgba(228, 178, 92, 0.16);
+}
+
+.login-visual-pie {
+  position: absolute;
+  bottom: 20px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(244, 239, 226, 0.28);
+}
+
+/* Libro decorativo de la esquina: páginas que se pasan solas */
+.login-libro-deco {
+  position: absolute;
+  right: -26px;
+  bottom: -18px;
+  width: 190px;
+  height: 130px;
+  opacity: 0.3;
+  transform: rotate(-14deg);
+  perspective: 900px;
+  z-index: 1;
+  pointer-events: none;
+}
+.login-libro-tapa {
+  position: absolute;
+  inset: 0;
+  border-radius: 6px 16px 16px 6px;
+  background: linear-gradient(150deg, #08233F, #164A78);
+  box-shadow: inset 0 0 0 1px rgba(217, 178, 95, 0.45);
+}
+.login-libro-hoja {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  width: 84px;
+  height: calc(100% - 18px);
+  border-radius: 0 10px 10px 0;
+  background: linear-gradient(100deg, #FFFDF8, #E7DFCC);
+  transform-origin: left center;
+  animation: login-pagina 3.4s cubic-bezier(0.42, 0, 0.35, 1) infinite;
+}
+.login-libro-hoja.lh1 { animation-delay: 0s; }
+.login-libro-hoja.lh2 { animation-delay: 1.13s; }
+.login-libro-hoja.lh3 { animation-delay: 2.26s; }
+@keyframes login-pagina {
+  0%   { transform: rotateY(0deg); opacity: 0; }
+  10%  { opacity: 1; }
+  55%  { transform: rotateY(-162deg); opacity: 1; }
+  68%  { transform: rotateY(-168deg); opacity: 0; }
+  100% { transform: rotateY(-168deg); opacity: 0; }
+}
+
+/* ---------- Formulario ---------- */
+
+.login-form-side {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.login-form {
+  width: 100%;
+  max-width: 360px;
+  animation: login-entra-arriba 0.6s 0.1s ease both;
+}
 .login-form h2 {
   font-family: var(--font-display);
-  font-size: 26px;
+  font-size: 27px;
   font-weight: 600;
   margin: 0 0 6px;
+  color: #FFFDF8;
 }
-.login-form .sub { color: var(--muted); font-size: 13.5px; margin: 0 0 28px; }
+.login-form .sub { color: rgba(244, 239, 226, 0.55); font-size: 13.5px; margin: 0 0 26px; }
+
+/* Marca compacta: solo se ve en pantallas pequeñas */
+.login-form-brand {
+  display: none;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 22px;
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 600;
+  color: #F4EFE2;
+}
+.login-form-brand svg { width: 24px; height: 24px; color: #E4B25C; }
+
 .login-form label {
-  display: block; font-size: 12.5px; font-weight: 600; color: var(--ink);
-  margin-bottom: 7px; margin-top: 16px;
+  display: block;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #E9E2CF;
+  margin-bottom: 7px;
+  margin-top: 16px;
 }
 .login-form input[type="email"],
 .login-form input[type="password"],
 .login-form input[type="text"] {
-  width: 100%; padding: 11px 12px; border: 1px solid var(--border); border-radius: 8px;
-  background: var(--cream); font-family: var(--font-body); font-size: 14px; color: var(--ink);
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid rgba(244, 239, 226, 0.18);
+  border-radius: 8px;
+  background: rgba(244, 239, 226, 0.06);
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: #FFFDF8;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
 }
-.login-form input:focus { outline: none; border-color: var(--navy-lighter); box-shadow: 0 0 0 3px rgba(31,74,115,0.12); }
+.login-form input::placeholder { color: rgba(244, 239, 226, 0.36); }
+.login-form input:hover { border-color: rgba(244, 239, 226, 0.32); }
+.login-form input:focus {
+  outline: none;
+  border-color: #D9B25F;
+  background: rgba(244, 239, 226, 0.09);
+  box-shadow: 0 0 0 3px rgba(217, 178, 95, 0.18);
+}
+/* El autocompletado de Chrome no debe pintar los campos de blanco */
+.login-form input:-webkit-autofill,
+.login-form input:-webkit-autofill:hover,
+.login-form input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #FFFDF8;
+  -webkit-box-shadow: 0 0 0 60px #0B2440 inset;
+  caret-color: #FFFDF8;
+  transition: background-color 9999s ease-out;
+}
 
 .password-wrap { position: relative; }
 .password-wrap input { padding-right: 40px; }
 .toggle-pass {
-  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
-  background: none; border: none; cursor: pointer; color: var(--muted-soft);
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: rgba(244, 239, 226, 0.42);
   display: flex;
+  padding: 2px;
+  transition: color 0.18s ease;
 }
+.toggle-pass:hover { color: #E4B25C; }
 .toggle-pass svg { width: 18px; height: 18px; }
 
-.checkbox-row { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 400; color: var(--muted); margin-top: 18px; }
-.checkbox-row input { width: 15px; height: 15px; }
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 400;
+  color: rgba(244, 239, 226, 0.6);
+  margin-top: 18px;
+  cursor: pointer;
+}
+.checkbox-row input { width: 15px; height: 15px; accent-color: #D9B25F; }
+
+/* ---------- Botón "Iniciar sesión" (dorado) ---------- */
 
 .btn-login {
-  width: 100%; margin-top: 22px; padding: 12px; border: none; border-radius: 8px;
-  background: var(--navy); color: #fff; font-size: 14.5px; font-weight: 600; cursor: pointer;
+  position: relative;
+  width: 100%;
+  margin-top: 22px;
+  padding: 12px;
+  border: none;
+  border-radius: 9px;
+  overflow: hidden;
+  background: linear-gradient(135deg, #EBCB86 0%, #D9B25F 45%, #C89B41 100%);
+  color: #241A06;
+  font-size: 14.5px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.35), 0 0 24px rgba(217, 178, 95, 0.14);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
 }
-.btn-login:hover { background: var(--navy-light); }
+/* Brillo que cruza el botón al pasar el mouse */
+.btn-login::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -60%;
+  width: 45%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+  transform: skewX(-18deg);
+  transition: left 0.55s ease;
+}
+.btn-login:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.42), 0 0 32px rgba(217, 178, 95, 0.25);
+}
+.btn-login:hover::after { left: 120%; }
+.btn-login:active { transform: translateY(0) scale(0.985); }
+.btn-login:focus-visible { outline: 3px solid rgba(228, 178, 92, 0.55); outline-offset: 2px; }
+.btn-login:disabled { opacity: 0.65; cursor: wait; transform: none; box-shadow: none; }
 
-.forgot-link { display: block; text-align: center; margin-top: 18px; font-size: 13px; color: var(--navy); text-decoration: underline; }
+.btn-flecha {
+  display: inline-block;
+  transition: transform 0.2s ease;
+}
+.btn-login:hover .btn-flecha { transform: translateX(4px); }
+
+.btn-spinner {
+  width: 15px;
+  height: 15px;
+  border: 2px solid rgba(36, 26, 6, 0.28);
+  border-top-color: #241A06;
+  border-radius: 50%;
+  animation: girar 0.7s linear infinite;
+}
+
+.forgot-link {
+  display: block;
+  text-align: center;
+  margin-top: 16px;
+  font-size: 13px;
+  color: #E4B25C;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.forgot-link:hover { color: #F0D49B; }
+
+/* ---------- Separador ---------- */
+
+.login-divisor {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0;
+  color: rgba(244, 239, 226, 0.35);
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.login-divisor::before,
+.login-divisor::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(244, 239, 226, 0.14);
+}
+
+/* ---------- Botón "Entrar como invitado" ---------- */
+
+.btn-invitado {
+  position: relative;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1.5px solid rgba(228, 178, 92, 0.65);
+  border-radius: 9px;
+  overflow: hidden;
+  background: rgba(228, 178, 92, 0.06);
+  color: #EBCE8A;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, color 0.18s ease;
+  animation: invitado-pulso 3s ease-in-out infinite;
+}
+@keyframes invitado-pulso {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(228, 178, 92, 0.28); }
+  50%      { box-shadow: 0 0 0 6px rgba(228, 178, 92, 0); }
+}
+.btn-invitado svg { width: 19px; height: 19px; flex: none; }
+
+/* Destello dorado que recorre el botón */
+.btn-invitado-brillo {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -70%;
+  width: 50%;
+  background: linear-gradient(100deg, transparent, rgba(240, 212, 155, 0.32), transparent);
+  transform: skewX(-20deg);
+  animation: invitado-brillo 3.2s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes invitado-brillo {
+  0%, 55% { left: -70%; }
+  85%     { left: 130%; }
+  100%    { left: 130%; }
+}
+
+.btn-invitado:hover {
+  transform: translateY(-1px);
+  color: #F7E3B6;
+  background: rgba(228, 178, 92, 0.13);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.35), 0 0 26px rgba(228, 178, 92, 0.18);
+  animation-play-state: paused;
+}
+.btn-invitado:active { transform: translateY(0) scale(0.985); }
+.btn-invitado:focus-visible { outline: 3px solid rgba(228, 178, 92, 0.45); outline-offset: 2px; }
+
+.invitado-nota {
+  margin: 10px 4px 0;
+  text-align: center;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: rgba(244, 239, 226, 0.4);
+}
+
+.registro-link {
+  text-align: center;
+  font-size: 13px;
+  color: rgba(244, 239, 226, 0.55);
+  margin-top: 16px;
+}
+.registro-link a { color: #E4B25C; font-weight: 600; }
+
+/* ---------- Avisos dentro del formulario ---------- */
+
+.login-screen .error-form {
+  background: rgba(181, 67, 60, 0.16);
+  border: 1px solid rgba(214, 120, 114, 0.35);
+  color: #F0B4AE;
+}
+.login-screen .info-box {
+  background: rgba(47, 94, 140, 0.22);
+  border: 1px solid rgba(117, 161, 204, 0.28);
+  color: #BFD7F0;
+}
+
+/* ---------- Registro (comparte estilos) ---------- */
+
+.login-form .form-grid label { margin-top: 0; }
+.login-form .form-grid input,
+.login-form .form-grid select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid rgba(244, 239, 226, 0.18);
+  border-radius: 8px;
+  background: rgba(244, 239, 226, 0.06);
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  color: #FFFDF8;
+}
+.login-form .form-grid input:focus,
+.login-form .form-grid select:focus {
+  outline: none;
+  border-color: #D9B25F;
+  box-shadow: 0 0 0 3px rgba(217, 178, 95, 0.18);
+}
+.login-form .form-grid select option {
+  background: #0B2440;
+  color: #FFFDF8;
+}
+.login-form.ancho { max-width: 460px; }
+
+/* ---------- Responsive ---------- */
 
 @media (max-width: 860px) {
   .login-screen { grid-template-columns: 1fr; }
   .login-visual { display: none; }
+  .login-form-side { padding: 30px 20px 40px; align-items: flex-start; }
+  .login-form-brand { display: flex; }
+  .login-form { padding-top: 10px; }
 }
 
-.btn-login:disabled { opacity: .7; cursor: wait; }
-.registro-link { text-align: center; font-size: 13px; color: var(--muted); margin-top: 14px; }
-.registro-link a { color: var(--navy); font-weight: 600; }
-.login-form .form-grid label { margin-top: 0; }
-.login-form .form-grid input, .login-form .form-grid select {
-  width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px;
-  background: var(--cream); font-family: var(--font-body); font-size: 13.5px; color: var(--ink);
+@media (prefers-reduced-motion: reduce) {
+  .login-visual,
+  .login-visual-content,
+  .login-form,
+  .login-visual-overlay,
+  .login-logo-badge,
+  .login-libro-hoja,
+  .btn-invitado,
+  .btn-invitado-brillo {
+    animation: none !important;
+  }
+  .login-libro-hoja { opacity: 0; }
 }
-.login-form.ancho { max-width: 460px; }

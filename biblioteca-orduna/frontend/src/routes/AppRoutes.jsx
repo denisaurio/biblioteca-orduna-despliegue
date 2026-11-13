@@ -1,6 +1,8 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import ProtectedRoute from './ProtectedRoute.jsx';
 import AppLayout from '../components/layout/AppLayout.jsx';
+import CargadorLibro from '../components/common/CargadorLibro.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 
 import Login from '../pages/Login/Login.jsx';
@@ -46,14 +48,40 @@ function SegunRol({ lector: Lector, personal: Personal }) {
 const PrestamosSegunRol = () => <SegunRol lector={MisPrestamos} personal={Prestamos} />;
 const ReservasSegunRol = () => <SegunRol lector={MisReservas} personal={Reservas} />;
 
+/**
+ * Libro pasando páginas: al abrir la app y en cada cambio de ruta.
+ * Se queda un momento en pantalla y luego se despide con un fundido.
+ */
+function CargadorDeRuta() {
+  const { pathname } = useLocation();
+  const [estado, setEstado] = useState('visible'); // visible | saliendo | oculto
+  const primeraCarga = useRef(true);
+
+  useEffect(() => {
+    // La primera vez dura un poco más: la app todavía está arrancando.
+    const duracion = primeraCarga.current ? 1700 : 750;
+    primeraCarga.current = false;
+
+    setEstado('visible');
+    const t1 = setTimeout(() => setEstado('saliendo'), duracion);
+    const t2 = setTimeout(() => setEstado('oculto'), duracion + 430);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [pathname]);
+
+  if (estado === 'oculto') return null;
+  return <CargadorLibro saliendo={estado === 'saliendo'} />;
+}
+
 function AppRoutes() {
   return (
     <BrowserRouter>
+      <CargadorDeRuta />
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/registro" element={<Registro />} />
 
-        <Route path="/inicio" element={conLayout(Inicio)} />
+        {/* El invitado solo puede estar en Inicio; el resto lo devuelve aquí. */}
+        <Route path="/inicio" element={conLayout(Inicio, { permitirInvitado: true })} />
         <Route path="/libros" element={conLayout(Libros)} />
         <Route path="/autores" element={conLayout(Autores)} />
         <Route path="/prestamos" element={conLayout(PrestamosSegunRol)} />

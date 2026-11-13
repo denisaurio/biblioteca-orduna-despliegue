@@ -252,6 +252,14 @@ biblioteca-orduna/
 - **Estados y badges:** si añades un estado nuevo, actualiza a la vez
   `utils/estados.js` y el componente `Estado.jsx` para que tenga color y
   etiqueta en español.
+- **Modo invitado (solo visual):** `entrarComoInvitado()` de `AuthContext` crea
+  una sesión **en memoria**, sin token y sin `localStorage`. `ProtectedRoute`
+  solo le deja ver `/inicio` y `AppLayout` intercepta clics, envíos y Enter con
+  el aviso "Un bibliotecario te debe crear tu cuenta". El rol `INVITADO` no
+  existe en la base de datos: **no lo persistas ni lo mandes al backend**.
+- **Carga global:** `components/common/CargadorLibro.jsx` (libro pasando
+  páginas, puntos de carga y frase motivadora) se muestra al abrir la app y en
+  cada cambio de ruta; se monta una sola vez en `AppRoutes.jsx`.
 - **Escaneo de códigos:** usa `components/common/EscanerCodigo.jsx`. En la PC
   el lector de códigos actúa como teclado (escribe el número y se pulsa
   Enter); en el celular, la cámara. La cámara usa la API **nativa** del

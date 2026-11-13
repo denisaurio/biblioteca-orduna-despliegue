@@ -1,0 +1,151 @@
+/* Modo invitado: franja de aviso y modal que aparece al hacer clic. */
+
+.invitado-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 14px 26px 0;
+  padding: 10px 16px;
+  border: 1px solid #E8D9A8;
+  border-radius: 10px;
+  background: linear-gradient(90deg, #FBF3DA, #F7EED7);
+  color: #6B5410;
+  font-size: 13px;
+  line-height: 1.45;
+  animation: invitado-banner-entra 0.4s ease both;
+}
+.invitado-banner b { color: #4F3D06; }
+.invitado-banner-icono { font-size: 17px; }
+
+/* Barra superior del invitado: sin menú desplegable, con un "Salir" directo. */
+.invitado-user { cursor: default; }
+.topbar-salir {
+  margin-left: 4px;
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--cream);
+  color: var(--navy);
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.16s ease, transform 0.16s ease, box-shadow 0.16s ease;
+}
+.topbar-salir:hover {
+  background: #F1E8D2;
+  box-shadow: 0 4px 12px rgba(11, 43, 74, 0.12);
+}
+.topbar-salir:active { transform: scale(0.96); }
+
+@keyframes invitado-banner-entra {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ---------- Modal ---------- */
+
+.invitado-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 8000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(11, 43, 74, 0.45);
+  backdrop-filter: blur(3px);
+  animation: invitado-fondo-entra 0.2s ease both;
+}
+@keyframes invitado-fondo-entra {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.invitado-modal {
+  width: 100%;
+  max-width: 420px;
+  padding: 30px 28px 24px;
+  border-radius: 16px;
+  background: var(--card);
+  box-shadow: 0 24px 60px rgba(11, 43, 74, 0.35);
+  text-align: center;
+  animation: invitado-modal-entra 0.32s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+@keyframes invitado-modal-entra {
+  from { opacity: 0; transform: translateY(14px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.invitado-modal-icono {
+  width: 58px;
+  height: 58px;
+  margin: 0 auto 16px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--amber-bg);
+  color: var(--amber-text);
+}
+.invitado-modal-icono svg { width: 30px; height: 30px; }
+
+.invitado-modal h3 {
+  margin: 0 0 10px;
+  font-family: var(--font-display);
+  font-size: 21px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--navy);
+}
+.invitado-modal p {
+  margin: 0 0 10px;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+.invitado-modal-pista {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--cream);
+  font-size: 12.5px !important;
+  color: var(--ink) !important;
+}
+
+.invitado-modal-botones {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+.invitado-modal-botones button {
+  flex: 1;
+  padding: 11px 14px;
+  border-radius: 9px;
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+}
+.invitado-modal-botones button:active { transform: scale(0.97); }
+
+.btn-secundario {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--ink);
+}
+.btn-secundario:hover { background: var(--cream); }
+
+.btn-primario {
+  border: none;
+  background: var(--navy);
+  color: #fff;
+}
+.btn-primario:hover {
+  background: var(--navy-light);
+  box-shadow: 0 8px 18px rgba(11, 43, 74, 0.25);
+}
+
+@media (max-width: 620px) {
+  .invitado-banner { margin: 12px 14px 0; }
+  .invitado-modal-botones { flex-direction: column-reverse; }
+}

@@ -24,6 +24,50 @@
   .destacados-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
+/* ---- Inicio del invitado ---- */
+.hero-invitado {
+  background: linear-gradient(120deg, #0B2B4A 0%, #1F4A73 60%, #2C5C86 100%);
+}
+.etiqueta-invitado {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--amber-text);
+  background: var(--amber-bg);
+  border-radius: 20px;
+  padding: 4px 11px;
+}
+.invitado-pasos {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-top: 24px;
+}
+.invitado-paso {
+  display: flex;
+  gap: 13px;
+  padding: 18px;
+  align-items: flex-start;
+}
+.invitado-paso-num {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--navy);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+.invitado-paso b { font-size: 13.5px; color: var(--ink); }
+.invitado-paso p { margin: 4px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--muted); }
+
+@media (max-width: 860px) {
+  .invitado-pasos { grid-template-columns: 1fr; }
+}
+
 .hero-search { margin-top: 16px; max-width: 420px; }
 .hero-search input { width: 100%; padding: 10px 14px; border-radius: 8px; border: none; font-family: var(--font-body); font-size: 13.5px; }
 .libro-card { color: inherit; display: block; transition: transform .12s ease; }
