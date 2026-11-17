@@ -9,7 +9,7 @@ import Modal from '../../components/common/Modal.jsx';
 import Campo from '../../components/common/Campo.jsx';
 import { FilaEstado } from '../../components/common/Cargando.jsx';
 import { estadoMulta, metodosPago, nombreMetodo } from '../../utils/estados.js';
-import { codigo, fmtFecha, fmtFechaHora, fmtSoles, inicioMesISO, hoyISO } from '../../utils/formato.js';
+import { codCaja, codigo, fmtFecha, fmtFechaHora, fmtSoles, inicioMesISO, hoyISO } from '../../utils/formato.js';
 
 function PagosMulta() {
   const [vista, setVista] = useState('PENDIENTES');
@@ -79,7 +79,11 @@ function TablaMultas({ filtro, busqueda, onPagar, version, refresco }) {
               </td>
               <td className="mono">{fmtSoles(m.monto)}</td>
               <td className="mono">{fmtSoles(m.monto_pagado)}</td>
-              <td>{m.ultimo_metodo_pago ? nombreMetodo[m.ultimo_metodo_pago] : '—'}</td>
+              <td>
+                {m.ultimo_metodo_pago ? nombreMetodo[m.ultimo_metodo_pago] : '—'}
+                {m.cajas_pago?.length > 0 && <div className="pick-sub">Pagada en {m.cajas_pago.map(codCaja).join(', ')}</div>}
+                {m.id_caja_prestamo && <div className="pick-sub">Préstamo {codCaja(m.id_caja_prestamo)} → {codCaja(m.id_caja_devolucion)}</div>}
+              </td>
               <td className="mono">{fmtFecha(m.fecha_ultimo_pago || m.fecha_generacion)}</td>
               <td><Estado valor={m.estado} mapa={estadoMulta} /></td>
               <td>{m.estado !== 'PAGADA' && <button className="btn-primary btn-sm" onClick={() => onPagar(m)}>Cobrar</button>}</td>

@@ -60,19 +60,49 @@ public class Prestamo {
      * Precio del ejemplar en el momento del préstamo. Se COPIA, igual que la tarifa
      * de multa: cambiar después el precio del libro o del ejemplar no altera los
      * préstamos ya hechos (sirve para saber cuánto vale lo que salió de la biblioteca).
-     * Vale igual en las dos rutas: fecha fija y abierto.
+     * Se cobra al prestar (préstamos antiguos: al devolver).
      */
     @Column(name = "precio_copia", precision = 10, scale = 2)
     private BigDecimal precioCopia;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
+    @Column(nullable = false, length = 20, columnDefinition = "varchar(20) not null")
     private EstadoPrestamo estado = EstadoPrestamo.ACTIVO;
+
+    /**
+     * Caja abierta cuando se registró el préstamo (donde se cobra el precio). Si quedó
+     * POR_COBRAR, pasa a ser la caja en que el encargado lo cobró. null en préstamos
+     * anteriores a la relación entre cajas.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_caja_inicio")
+    private Caja cajaInicio;
+
+    /** Caja abierta cuando se devolvió el libro. null mientras está fuera. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_caja_fin")
+    private Caja cajaFin;
+
+    /**
+     * true: el precio de la copia se cobra AL PRESTAR (regla actual).
+     * false: préstamo antiguo, el precio se cobra al devolver (regla anterior).
+     * data.sql pone false en las filas antiguas.
+     */
+    @Column(name = "cobro_al_prestar")
+    private Boolean cobroAlPrestar;
 
     /** true si es de fecha fija, sigue activo y ya pasó su fecha. */
     public boolean estaVencido(LocalDate hoy) {
         return estado == EstadoPrestamo.ACTIVO && fechaVencimiento != null && fechaVencimiento.isBefore(hoy);
     }
+
+    public Caja getCajaInicio() { return cajaInicio; }
+    public void setCajaInicio(Caja cajaInicio) { this.cajaInicio = cajaInicio; }
+    public Caja getCajaFin() { return cajaFin; }
+    public void setCajaFin(Caja cajaFin) { this.cajaFin = cajaFin; }
+    /** true si el precio se cobra al prestar (préstamos nuevos). */
+    public boolean isCobroAlPrestar() { return Boolean.TRUE.equals(cobroAlPrestar); }
+    public void setCobroAlPrestar(Boolean cobroAlPrestar) { this.cobroAlPrestar = cobroAlPrestar; }
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }

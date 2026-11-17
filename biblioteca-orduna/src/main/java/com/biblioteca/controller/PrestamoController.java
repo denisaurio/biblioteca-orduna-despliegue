@@ -1,5 +1,7 @@
 package com.biblioteca.controller;
 
+import com.biblioteca.dto.AnularPrestamoDTO;
+import com.biblioteca.dto.CobrarPrestamoDTO;
 import com.biblioteca.dto.NuevoPrestamoDTO;
 import com.biblioteca.dto.PrestamoResponseDTO;
 import com.biblioteca.security.UsuarioAutenticado;
@@ -35,8 +37,26 @@ public class PrestamoController {
     }
 
     /**
+     * POST /api/prestamos/{id}/cobrar - el encargado de la caja (o el gerente) cobra un
+     * préstamo POR_COBRAR. Body: {"metodo_pago":"EFECTIVO"}
+     */
+    @PostMapping("/{idPrestamo}/cobrar")
+    public PrestamoResponseDTO cobrar(@PathVariable Long idPrestamo, @Valid @RequestBody CobrarPrestamoDTO datos,
+                                      @AuthenticationPrincipal UsuarioAutenticado actor) {
+        return prestamoService.cobrarPrestamo(idPrestamo, datos, actor.id());
+    }
+
+    /** POST /api/prestamos/{id}/anular - el cliente no pagó: se anula y el ejemplar se libera. Body: {"motivo":""} */
+    @PostMapping("/{idPrestamo}/anular")
+    public PrestamoResponseDTO anular(@PathVariable Long idPrestamo,
+                                      @Valid @RequestBody(required = false) AnularPrestamoDTO datos,
+                                      @AuthenticationPrincipal UsuarioAutenticado actor) {
+        return prestamoService.anularPrestamo(idPrestamo, datos, actor.id());
+    }
+
+    /**
      * GET /api/prestamos?estado=ACTIVOS&q=ana
-     * estado: ACTIVOS (por defecto), VENCIDOS, DEVUELTOS o TODOS. Lo usa la pantalla Devoluciones.
+     * estado: ACTIVOS (por defecto), VENCIDOS, DEVUELTOS, POR_COBRAR o TODOS. Lo usa la pantalla Devoluciones.
      */
     @GetMapping
     public List<PrestamoResponseDTO> listar(@RequestParam(required = false, defaultValue = "ACTIVOS") String estado,

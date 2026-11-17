@@ -21,10 +21,14 @@ public enum TipoAccionAuditoria {
     REGISTRAR_PRESTAMO,
     REGISTRAR_DEVOLUCION,
     COBRAR_MULTA,
+    COBRAR_PRESTAMO,
+    ANULAR_PRESTAMO,
 
     // Caja
     ABRIR_CAJA,
     CERRAR_CAJA,
+    ASIGNAR_ENCARGADO,
+    ARQUEAR_CAJA,
 
     // Turnos (bitácora del personal)
     ABRIR_TURNO,
@@ -41,6 +45,7 @@ public enum TipoAccionAuditoria {
     APLICAR_SANCION,
     LEVANTAR_SANCION,
     CREAR_AVISO,
+    NOTA_CLIENTE,
 
     // Configuración
     CAMBIAR_CONFIGURACION,

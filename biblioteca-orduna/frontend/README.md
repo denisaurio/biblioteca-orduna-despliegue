@@ -55,7 +55,8 @@ Si el backend corre en otra dirección, cambia `VITE_API_URL` en el archivo `.en
 | Mis reservas | `/reservas` | lector | `GET /mi/reservas`, `POST /reservas`, `PATCH /reservas/{id}/cancelar` |
 | Ejemplares | `/ejemplares` | personal | `GET /ejemplares`, `POST /libros/{id}/ejemplares`, `PUT /ejemplares/{id}` |
 | Pagos de multas | `/pagos-multa` | personal | `GET /multas`, `POST /multas/{id}/pagar`, `GET /multas/pagos` |
-| Caja | `/caja` | personal | `GET /cajas/actual`, `POST /cajas`, `POST /cajas/{id}/cerrar`, `GET /cajas`, `GET /cajas/{id}`, `GET /cajas/pendientes` |
+| Caja | `/caja` | personal | `GET /cajas/actual`, `POST /cajas`, `PUT /cajas/{id}/encargado`, `POST /cajas/{id}/arqueo`, `POST /cajas/{id}/cerrar`, `GET /cajas`, `GET /cajas/{id}`, `GET /cajas/pendientes`, `POST /prestamos/{id}/cobrar`, `POST /prestamos/{id}/anular` |
+| Clientes (Ficha 360) | `/clientes` | gerente | `GET /usuarios`, `GET /crm/clientes/{id}`, `POST /crm/clientes/{id}/notas`, `DELETE /crm/notas/{id}` |
 | Sanciones y bloqueos | `/sanciones` | personal | `GET /sanciones`, `POST /usuarios/{id}/suspender`, `PATCH /sanciones/{id}/levantar` |
 | Avisos | `/avisos` | todos | `GET /notificaciones`, `PATCH .../leida`, `POST /notificaciones`, `GET /notificaciones/todas`, `PUT /configuracion` (interruptores) |
 | Bitácora de turnos | `/bitacora` | personal | `GET /turnos`, `GET /turnos/actual`, `POST /turnos/abrir`, `POST /turnos/cerrar` |
@@ -108,13 +109,27 @@ La captura se guarda en el bucket **privado** de R2 y se entrega con una URL fir
 
 `pages/Caja/Caja.jsx` tiene tres pestañas:
 
-- **Hoy**: si no hay caja abierta, el formulario para abrirla (con el **monto inicial**);
-  con caja abierta, el monto inicial, lo cobrado, el total del día, el desglose por
-  método de pago y por tipo de cobro, los movimientos y el botón **"Cerrar caja"** (pide
-  el efectivo contado y dice si sobra o falta).
+- **Hoy**: si no hay caja abierta, el **gerente** ve el formulario para abrirla (monto
+  inicial y **encargado**); el bibliotecario ve que solo el administrador la abre. Con
+  caja abierta: el cartel del encargado (verde si tú puedes cobrar), los **préstamos
+  por cobrar** (Cobrar / Anular), el monto inicial, lo cobrado, el total del día, el
+  desglose, el arqueo del encargado, el historial de encargados y los movimientos.
+  Botones: **"Contar efectivo"** (encargado o gerente), **"Cambiar encargado"** y
+  **"Cerrar caja"** (solo gerente; usa el monto que contó el encargado).
 - **Pendientes**: los préstamos sin devolver con su precio a cobrar, las reservas por
   recoger con su fecha límite, las que están en cola y los pedidos virtuales sin cobrar.
-- **Historial**: las cajas cerradas, con su arqueo, y el detalle de sus movimientos.
+- **Historial**: las cajas con su encargado y su arqueo. El detalle muestra los
+  movimientos y los préstamos que **empezaron** y **terminaron** en esa caja, con su
+  recorrido (por ejemplo `C001 → C003`).
+
+El asistente de **Nuevo préstamo** cobra al prestar si eres el encargado (eliges el
+método de pago); si no, avisa que el préstamo quedará **por cobrar**. Sin caja abierta
+no deja confirmar.
+
+**Clientes (Ficha 360)** (`pages/Clientes/Clientes.jsx`, solo gerente): buscador de
+lectores a la izquierda y la ficha a la derecha (resumen, préstamos con sus cajas,
+pagos, multas, sanciones y notas internas). Se abre directo con `/clientes?id=3`;
+la pantalla Usuarios tiene el botón ◎ en cada lector.
 
 El dinero **solo** entra por los movimientos: sin caja abierta, el backend rechaza el
 cobro (400) y la pantalla de devoluciones avisa antes de dejar confirmar.

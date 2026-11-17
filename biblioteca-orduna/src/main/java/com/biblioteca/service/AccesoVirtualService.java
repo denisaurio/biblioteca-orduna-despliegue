@@ -270,7 +270,7 @@ public class AccesoVirtualService {
         if (orden.pagado()) {
             return aDTO(orden);
         }
-        cajaService.exigirCajaAbierta();
+        cajaService.exigirPuedeCobrar(idActor);
         LocalDate hoy = LocalDate.now();
         orden.setEstado(EstadoAccesoVirtual.PAGADO);
         orden.setReferenciaPago(referenciaPago);

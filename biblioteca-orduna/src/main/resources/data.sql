@@ -46,3 +46,19 @@ INSERT IGNORE INTO generos (nombre) VALUES ('Ingeniería');
 -- sin esto no se podría guardar el tipo nuevo PERSONALIZADO. Es idempotente: si ya es
 -- VARCHAR(20) no cambia nada y los datos se conservan.
 ALTER TABLE prestamos MODIFY COLUMN tipo_prestamo VARCHAR(20) NOT NULL;
+
+-- Préstamos: estado pasa a VARCHAR(20) para que entren POR_COBRAR y ANULADO
+-- (Hibernate la creó como ENUM('ACTIVO','DEVUELTO')). Idempotente, conserva los datos.
+ALTER TABLE prestamos MODIFY COLUMN estado VARCHAR(20) NOT NULL;
+
+-- Auditoría: accion pasa a VARCHAR(40) para las acciones nuevas (encargado de caja,
+-- arqueo, cobrar/anular préstamo, notas del CRM). Idempotente.
+ALTER TABLE auditorias MODIFY COLUMN accion VARCHAR(40) NOT NULL;
+
+-- Préstamos anteriores al cobro al prestar: su precio se cobra AL DEVOLVER, como se
+-- acordó cuando salieron. Los préstamos nuevos siempre guardan true o false, así que
+-- esto solo toca filas antiguas.
+UPDATE prestamos SET cobro_al_prestar = 0 WHERE cobro_al_prestar IS NULL;
+
+-- Cajas anteriores al encargado: el encargado es quien la abrió.
+UPDATE cajas SET id_encargado = id_usuario_apertura WHERE id_encargado IS NULL;

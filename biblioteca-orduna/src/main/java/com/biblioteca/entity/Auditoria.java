@@ -28,7 +28,8 @@ public class Auditoria {
     private Usuario usuario;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 40)
+    // VARCHAR(40) y no ENUM de MySQL: así entran las acciones nuevas (ver data.sql).
+    @Column(nullable = false, length = 40, columnDefinition = "varchar(40) not null")
     private TipoAccionAuditoria accion;
 
     /** Sobre qué se hizo: LIBRO, EJEMPLAR, PRESTAMO, CAJA, TURNO, USUARIO... */

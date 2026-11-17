@@ -25,6 +25,10 @@ export const estadoPrestamo = {
   ACTIVO: ['blue', 'En plazo'],
   VENCIDO: ['red', 'Retraso'],
   DEVUELTO: ['green', 'Devuelto'],
+  // Lo registró un bibliotecario que no es el encargado: el libro no sale hasta que se cobre.
+  POR_COBRAR: ['amber', 'Por cobrar'],
+  // El cliente no pagó y se anuló: la copia quedó libre.
+  ANULADO: ['red', 'Anulado'],
 };
 
 /** Tipo de préstamo: fijo (días de la configuración) o personalizado. ABIERTO solo en préstamos antiguos. */

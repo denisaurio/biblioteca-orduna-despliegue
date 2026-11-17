@@ -8,10 +8,12 @@ import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 
-/** POST /api/cajas/{id}/cerrar - cerrar el cajón con el efectivo contado. */
+/**
+ * POST /api/cajas/{id}/cerrar - el gerente cierra el cajón.
+ * monto_final_declarado es opcional: si no viene, se usa lo que contó el encargado (arqueo).
+ */
 public record CerrarCajaDTO(
-        /** Efectivo contado en el cajón al cerrar. */
-        @NotNull(message = "Escribe cuánto efectivo hay en el cajón")
+        /** Efectivo contado en el cajón al cerrar (null = el que declaró el encargado). */
         @DecimalMin(value = "0.00", message = "El monto contado no puede ser negativo")
         @Digits(integer = 8, fraction = 2, message = "El monto contado admite dos decimales")
         @JsonProperty("monto_final_declarado") BigDecimal montoFinalDeclarado,

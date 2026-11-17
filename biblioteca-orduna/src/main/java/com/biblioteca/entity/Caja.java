@@ -14,6 +14,11 @@ import java.time.LocalDateTime;
  * cuando se cierra. En MySQL un índice UNIQUE admite varios NULL, así que solo
  * puede existir una fila con caja_abierta = 1: la base lo garantiza.
  *
+ * Solo el GERENTE la abre y la cierra. Al abrirla elige un ENCARGADO (un empleado):
+ * solo el encargado (o el gerente) cobra mientras la caja está abierta. El gerente
+ * puede cambiar el encargado sin cerrarla; cada cambio queda en caja_encargados.
+ * Al final el encargado cuenta el efectivo (arqueo) y el gerente cierra.
+ *
  * La caja NO lleva turno_id: la caja es la sesión de dinero y el turno es la
  * bitácora del personal. Son dos cosas distintas que conviven.
  *
@@ -72,6 +77,32 @@ public class Caja {
 
     @Column(length = 300)
     private String observaciones;
+
+    /** Empleado encargado ahora (el único que cobra, junto con el gerente). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_encargado")
+    private Usuario encargado;
+
+    /** Efectivo que contó el encargado (arqueo). El gerente lo usa al cerrar. */
+    @Column(name = "monto_contado_encargado", precision = 10, scale = 2)
+    private BigDecimal montoContadoEncargado;
+
+    @Column(name = "fecha_arqueo")
+    private LocalDateTime fechaArqueo;
+
+    /** Quién declaró el arqueo. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_usuario_arqueo")
+    private Usuario usuarioArqueo;
+
+    public Usuario getEncargado() { return encargado; }
+    public void setEncargado(Usuario encargado) { this.encargado = encargado; }
+    public BigDecimal getMontoContadoEncargado() { return montoContadoEncargado; }
+    public void setMontoContadoEncargado(BigDecimal montoContadoEncargado) { this.montoContadoEncargado = montoContadoEncargado; }
+    public LocalDateTime getFechaArqueo() { return fechaArqueo; }
+    public void setFechaArqueo(LocalDateTime fechaArqueo) { this.fechaArqueo = fechaArqueo; }
+    public Usuario getUsuarioArqueo() { return usuarioArqueo; }
+    public void setUsuarioArqueo(Usuario usuarioArqueo) { this.usuarioArqueo = usuarioArqueo; }
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }

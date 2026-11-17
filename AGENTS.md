@@ -346,26 +346,48 @@ Estas reglas dan sentido al sistema. Si cambias una, cambia también
     préstamos ya hechos. Vale igual en las dos rutas, `FECHA_FIJA` y
     `PERSONALIZADO`. Si la copia no tiene precio propio, se usa el del libro.
 27. La **caja es una sola** para toda la biblioteca: solo puede haber una
-    abierta a la vez y el personal se turna. La columna `cajas.caja_abierta`
-    es UNIQUE (1 mientras está abierta, NULL al cerrarla): la base impide
-    abrir dos a la vez. Al abrirla se registra el **monto inicial** y al
-    cerrarla se hace el **arqueo** (efectivo contado contra el esperado).
-    La caja **no** lleva `turno_id`: caja (sesión de dinero) y turno
-    (bitácora del personal) son dos cosas que conviven.
-28. Al devolver un préstamo —**fijo, personalizado o abierto antiguo**— se cobra el
-    **precio de la copia** (`prestamos.precio_copia`). La multa se cobra
-    **aparte**, con su 15% de descuento en efectivo. Si la copia no tiene
-    precio, no hay cobro: la devolución se registra igual.
-29. **No se cobra sin caja abierta**: `CajaService.registrar()` es el único
-    punto por donde entra dinero y exige una caja abierta (si no, 400 con
-    un mensaje claro). El movimiento de caja es la **única fuente de verdad**
-    del dinero: el total del día es la suma de los movimientos del día.
+    abierta a la vez (cada apertura es una caja numerada: C001, C002...). La
+    columna `cajas.caja_abierta` es UNIQUE (1 mientras está abierta, NULL al
+    cerrarla): la base impide abrir dos a la vez. **Solo el GERENTE abre y
+    cierra la caja** (403 para el bibliotecario). Al abrirla registra el
+    **monto inicial** y elige un **ENCARGADO** (`cajas.id_encargado`, un
+    bibliotecario o gerente activo). El gerente puede **cambiar el encargado**
+    sin cerrar la caja (`PUT /api/cajas/{id}/encargado`); cada tramo queda en
+    `caja_encargados` (quién, desde, hasta, asignado por). Al final el
+    **encargado cuenta el efectivo** (`POST /api/cajas/{id}/arqueo`,
+    `cajas.monto_contado_encargado`) y el gerente cierra: si no escribe otro
+    monto, se usa el del encargado. La caja **no** lleva `turno_id`: caja
+    (sesión de dinero) y turno (bitácora del personal) conviven.
+28. **Solo el encargado de la caja abierta o el gerente cobran**
+    (`CajaService.puedeCobrar`, comprobado dentro de `registrar()`). Los demás
+    bibliotecarios prestan y devuelven, pero no reciben dinero.
+    **El precio de la copia se cobra AL PRESTAR** (`prestamos.cobro_al_prestar = true`):
+    si presta el encargado o el gerente, se cobra en el acto (`metodo_pago` en el
+    body) y el préstamo nace `ACTIVO`; si presta otro bibliotecario, nace
+    **`POR_COBRAR`**: el ejemplar queda apartado (`PRESTADO`) pero el libro no sale
+    hasta que el encargado lo cobra (`POST /api/prestamos/{id}/cobrar`; las fechas
+    del préstamo se cuentan desde el cobro). Si el cliente no paga, se **anula**
+    (`POST /api/prestamos/{id}/anular`, estado `ANULADO`) y el ejemplar se libera
+    a la cola de reservas. Un `POR_COBRAR` no se puede devolver.
+    Los **préstamos antiguos** (`cobro_al_prestar = false`, los que salieron antes
+    de este cambio) siguen pagando el precio **al devolver**, y ese cobro también
+    lo hace el encargado. La multa se cobra **aparte**, con su 15% de descuento en
+    efectivo. Si la copia no tiene precio, no hay cobro.
+29. **No se presta, devuelve ni cobra sin caja abierta**: el préstamo guarda la
+    caja donde empezó (`prestamos.id_caja_inicio`, la caja donde se pagó) y la
+    devolución la caja donde terminó (`prestamos.id_caja_fin`); la multa queda en
+    la caja donde se pagó (su movimiento). Así las cajas se **relacionan**: un
+    préstamo de la caja C001 se puede devolver en la C003 y pagar la multa ahí.
+    `CajaService.registrar()` es el único punto por donde entra dinero. El
+    movimiento de caja es la **única fuente de verdad** del dinero: el total del
+    día es la suma de los movimientos del día.
 30. El pago con **Yape es QR estático + comprobante**: el personal **aprueba
     o deniega** la captura. El pedido **no cambia de estado** al subir el
     comprobante ("en revisión" es un estado derivado). Aprobar es
     idempotente: un pedido ya pagado no se cobra ni se notifica dos veces.
 31. Las acciones del personal quedan **auditadas** (quién hizo qué) y solo el
-    gerente las ve. La auditoría se escribe en la **misma transacción** que
+    gerente las ve. Incluye asignar encargado, arqueo, cobrar y anular préstamos
+    y las notas del CRM. La auditoría se escribe en la **misma transacción** que
     la operación: si la operación se revierte, la auditoría tampoco se
     guarda. Por eso un método que audita no puede ser `readOnly = true`.
 
@@ -418,7 +440,10 @@ Frontend:
 - ❌ No subas secretos nuevos a `application.properties` (ya hay clave de BD y
   de JWT; es deuda técnica existente, no un patrón a copiar).
 - ❌ No cobres fuera de la caja: todo dinero que entra pasa por
-  `CajaService.registrar()`, que exige una caja abierta.
+  `CajaService.registrar()`, que exige una caja abierta y que cobre su
+  encargado o el gerente. No saltes esa comprobación "para probar".
+- ❌ No muestres las notas internas del CRM (`notas_cliente`) al lector: son solo
+  del personal (`/api/crm/**` es solo del gerente).
 - ❌ No cambies el estado de un pedido al subir un comprobante de Yape ("en
   revisión" es derivado) ni cobres dos veces el mismo pedido.
 - ❌ No devuelvas la clave del objeto de R2 ni una URL fija: el PDF y la
@@ -545,9 +570,23 @@ puede asumir que existe:
 - **Perfil del lector**: sección "Reserva de libro físico" (día y hora de inicio,
   día de devolución, multa por día y multa acumulada) y "Detalle de multas"
   (`pages/Prestamos/ReservasFisicas.jsx`, usa `/api/mi/prestamos` y `/api/mi/multas`).
-- **Caja (regla 27): sin caja abierta no se cobra nada.** Al probar en local,
-  abre primero la caja en la sección "Caja" (monto inicial `0.00` sirve), si
-  no, devolver un libro da 400 con el mensaje "No hay ninguna caja abierta".
+- **Caja (reglas 27-29): sin caja abierta no se presta, no se devuelve ni se
+  cobra.** Al probar en local, entra como **gerente** (`admin@biblioteca.pe`),
+  abre la caja en la sección "Caja" (monto inicial `0.00` sirve) y elige al
+  encargado. Si eliges al bibliotecario, sus préstamos se cobran en el acto; los
+  de cualquier otro quedan "por cobrar". El seed solo trae un bibliotecario: para
+  probar "otro bibliotecario" crea una cuenta de prueba a mano en tu base local.
+- **Más columnas que eran ENUM de MySQL**: `prestamos.estado` (VARCHAR(20), para
+  `POR_COBRAR` y `ANULADO`) y `auditorias.accion` (VARCHAR(40)) se convierten al
+  final de `data.sql`, igual que `tipo_prestamo`. `data.sql` también pone
+  `cobro_al_prestar = 0` a los préstamos antiguos y `id_encargado = id_usuario_apertura`
+  a las cajas antiguas. Las demás columnas `@Enumerated` siguen siendo ENUM nativos:
+  si les agregas un valor, agrega su ALTER.
+- **CRM: Ficha 360 del cliente** (solo gerente): `GET /api/crm/clientes/{id}` y las
+  notas internas (`/api/crm/clientes/{id}/notas`, `DELETE /api/crm/notas/{id}`),
+  pantalla `pages/Clientes/Clientes.jsx` (`/clientes`, también desde Usuarios).
+  Todo se lee de las tablas que ya existen (`CrmService`); lo único nuevo que se
+  guarda son las notas (`notas_cliente`).
 - **Auditoría (regla 31): la tabla `auditorias` no se purga sola** y crece con
   cada acción del personal. Si hay que limpiarla, se borran a mano las filas
   antiguas.

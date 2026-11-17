@@ -28,6 +28,7 @@ import LibrosVirtuales from '../pages/LibrosVirtuales/LibrosVirtuales.jsx';
 import MisLibrosVirtuales from '../pages/LibrosVirtuales/MisLibrosVirtuales.jsx';
 import Caja from '../pages/Caja/Caja.jsx';
 import Auditoria from '../pages/Auditoria/Auditoria.jsx';
+import Clientes from '../pages/Clientes/Clientes.jsx';
 
 function conLayout(Pagina, opciones) {
   return (
@@ -104,6 +105,7 @@ function AppRoutes() {
         {/* Solo gerente */}
         <Route path="/configuracion" element={conLayout(Configuracion, { soloGerente: true })} />
         <Route path="/auditoria" element={conLayout(Auditoria, { soloGerente: true })} />
+        <Route path="/clientes" element={conLayout(Clientes, { soloGerente: true })} />
 
         <Route path="/" element={<Navigate to="/inicio" replace />} />
         <Route path="*" element={<Navigate to="/inicio" replace />} />

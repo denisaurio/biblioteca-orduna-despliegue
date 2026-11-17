@@ -6,7 +6,7 @@ import { useApi, useRefrescoTiempoReal } from '../../hooks.js';
 import Estado from '../../components/common/Estado.jsx';
 import { Cargando, Vacio } from '../../components/common/Cargando.jsx';
 import { estadoMulta, estadoPrestamo, nombreTipoPrestamo } from '../../utils/estados.js';
-import { codigo, fmtFecha, fmtFechaHora, fmtSoles, hoyISO } from '../../utils/formato.js';
+import { codCaja, codigo, fmtFecha, fmtFechaHora, fmtSoles, hoyISO } from '../../utils/formato.js';
 import './ReservasFisicas.css';
 
 /** Días entre hoy y la fecha de devolución (negativo si ya pasó). */
@@ -89,7 +89,7 @@ export function ReservasFisicas() {
       {cargandoM ? <Cargando /> : multas.length === 0 ? <Vacio texto="No tienes multas. ¡Bien hecho!" /> : (
         <div className="table-card">
           <table>
-            <thead><tr><th>Libro</th><th>Motivo</th><th>Fecha</th><th>Monto</th><th>Pagado</th><th>Saldo</th><th>Estado</th></tr></thead>
+            <thead><tr><th>Libro</th><th>Motivo</th><th>Fecha</th><th>Monto</th><th>Pagado</th><th>Saldo</th><th>Estado</th><th>Dónde se pagó</th></tr></thead>
             <tbody>
               {multas.map((m) => (
                 <tr key={m.id}>
@@ -100,6 +100,7 @@ export function ReservasFisicas() {
                   <td className="mono">{fmtSoles(m.monto_pagado)}</td>
                   <td className="mono">{fmtSoles(m.saldo)}</td>
                   <td><Estado valor={m.estado} mapa={estadoMulta} /></td>
+                  <td className="mono">{m.cajas_pago?.length > 0 ? `Caja ${m.cajas_pago.map(codCaja).join(', ')}` : '—'}</td>
                 </tr>
               ))}
             </tbody>

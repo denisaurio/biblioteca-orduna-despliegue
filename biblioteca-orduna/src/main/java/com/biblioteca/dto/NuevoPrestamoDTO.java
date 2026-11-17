@@ -1,5 +1,6 @@
 package com.biblioteca.dto;
 
+import com.biblioteca.entity.MetodoPago;
 import com.biblioteca.entity.TipoPrestamo;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.DecimalMax;
@@ -17,6 +18,9 @@ import java.math.BigDecimal;
  *                o PERSONALIZADO (vence en dias_prestamo, que es obligatorio).
  * tarifa_multa_diaria: opcional. Si viene, es una multa personalizada por día de retraso;
  *                si no, se copia la tarifa vigente de la configuración.
+ * metodo_pago: cómo paga el precio de la copia al prestar (EFECTIVO por defecto). Solo se
+ *                usa si quien presta es el encargado de la caja o el gerente; si no, el
+ *                préstamo queda POR_COBRAR.
  */
 public record NuevoPrestamoDTO(
         @JsonProperty("id_ejemplar") Long idEjemplar,
@@ -24,5 +28,6 @@ public record NuevoPrestamoDTO(
         @JsonProperty("id_usuario_lector") @NotNull Long idUsuarioLector,
         @JsonProperty("tipo_prestamo") TipoPrestamo tipoPrestamo,
         @JsonProperty("dias_prestamo") @Min(1) @Max(365) Integer diasPrestamo,
-        @JsonProperty("tarifa_multa_diaria") @DecimalMin("0.00") @DecimalMax("9999.99") BigDecimal tarifaMultaDiaria
+        @JsonProperty("tarifa_multa_diaria") @DecimalMin("0.00") @DecimalMax("9999.99") BigDecimal tarifaMultaDiaria,
+        @JsonProperty("metodo_pago") MetodoPago metodoPago
 ) {}

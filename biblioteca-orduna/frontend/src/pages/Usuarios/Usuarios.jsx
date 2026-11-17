@@ -1,6 +1,7 @@
 // Réplica del prototipo Figma "USUARIOS" (RF04): tabla con identificación, nombre, tipo,
 // préstamos activos, estado y acciones (ver / editar), con paginación del backend.
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { getUsuarios, crearUsuario, actualizarUsuario } from '../../api/usuariosApi.js';
 import { getSancionesDeUsuario } from '../../api/sancionesApi.js';
@@ -70,6 +71,7 @@ function Usuarios() {
                   <div className="acciones">
                     <button className="icon-btn" title="Ver" onClick={() => setVer(u)}>👁</button>
                     {(u.rol === 'LECTOR' || esGerente) && <button className="icon-btn" title="Editar" onClick={() => setEditar(u)}>✎</button>}
+                    {esGerente && u.rol === 'LECTOR' && <Link className="icon-btn" title="Ficha 360" to={`/clientes?id=${u.id}`}>◎</Link>}
                   </div>
                 </td>
               </tr>

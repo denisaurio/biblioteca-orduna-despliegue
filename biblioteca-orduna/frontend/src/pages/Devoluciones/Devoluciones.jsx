@@ -2,8 +2,9 @@
 // estado En plazo / Retraso y alerta de préstamos vencidos. La multa la calcula el backend
 // (días de retraso × tarifa copiada al prestar: la de la configuración o una personalizada).
 // Los préstamos fijos y personalizados generan multa; solo los abiertos antiguos no.
-// Al devolver se cobra el precio de la copia: ese cobro entra a la caja, así que hace
-// falta que haya una caja abierta.
+// Hace falta una caja abierta: la devolución queda en la caja de ese día (el préstamo
+// pudo empezar en otra). Los préstamos nuevos ya pagaron al prestar; solo los antiguos
+// cobran el precio al devolver, y ese cobro lo hace el encargado de la caja.
 import { useState } from 'react';
 import { getPrestamos } from '../../api/prestamosApi.js';
 import { registrarDevolucion } from '../../api/devolucionesApi.js';
@@ -65,10 +66,10 @@ function Devoluciones() {
       <div className="card table-card" style={{ marginBottom: 16 }}>
         <table>
           <thead>
-            <tr><th>Identificación</th><th>Usuario</th><th>Libro</th><th>Ejemplar</th><th>Precio</th><th>Prestado</th><th>Fecha límite</th><th>Multa/día</th><th>Estado</th><th>Acciones</th></tr>
+            <tr><th>Identificación</th><th>Usuario</th><th>Libro</th><th>Ejemplar</th><th>Precio</th><th>Prestado</th><th>Caja</th><th>Fecha límite</th><th>Multa/día</th><th>Estado</th><th>Acciones</th></tr>
           </thead>
           <tbody>
-            {(cargando || prestamos.length === 0) && <FilaEstado columnas={10} cargando={cargando} vacio="No hay préstamos en esta vista." />}
+            {(cargando || prestamos.length === 0) && <FilaEstado columnas={11} cargando={cargando} vacio="No hay préstamos en esta vista." />}
             {!cargando && prestamos.map((p) => (
               <tr key={p.id}>
                 <td className="mono">{codigo('P', p.id)}</td>
@@ -79,6 +80,11 @@ function Devoluciones() {
                 <td className="mono">
                   {fmtFechaHora(p.fecha_prestamo)}
                   <div className="pick-sub">{nombreTipoPrestamo[p.tipo_prestamo] || p.tipo_prestamo}{p.dias_prestamo ? ` · ${p.dias_prestamo} día(s)` : ''}</div>
+                </td>
+                <td className="mono">
+                  {p.id_caja_inicio ? `C${String(p.id_caja_inicio).padStart(3, '0')}` : '—'}
+                  {p.id_caja_fin && <> → C{String(p.id_caja_fin).padStart(3, '0')}</>}
+                  <div className="pick-sub">{p.cobro_al_prestar ? 'Pagó al prestar' : 'Paga al devolver'}</div>
                 </td>
                 <td className="mono">{p.fecha_vencimiento ? fmtFecha(p.fecha_vencimiento) : 'Abierto'}</td>
                 <td className="mono">
@@ -125,12 +131,15 @@ function RegistrarDevolucion({ prestamo, onClose, onHecho }) {
   const [metodo, setMetodo] = useState('EFECTIVO');
   const [resultado, setResultado] = useState(null);
   const { ejecutar, enviando } = useAccion();
-  // El cobro del precio de la copia entra a la caja: sin caja abierta no se puede devolver.
+  // La devolución queda en la caja abierta: sin caja abierta no se puede devolver.
   const { datos: caja } = useApi(() => getCajaActual(), [], null);
 
-  const tienePrecio = prestamo.precio_copia != null;
+  // Solo los préstamos antiguos cobran el precio al devolver (los nuevos pagaron al prestar).
+  const tienePrecio = prestamo.precio_copia != null && !prestamo.cobro_al_prestar;
   const hayCaja = !!caja?.caja_abierta;
-  const sinCaja = tienePrecio && !hayCaja;
+  const sinCaja = caja != null && !hayCaja;
+  // El cobro lo hace el encargado de la caja o el administrador.
+  const sinPermisoCobro = tienePrecio && hayCaja && caja?.puedo_cobrar === false;
 
   const enviar = async (e) => {
     e.preventDefault();
@@ -155,7 +164,7 @@ function RegistrarDevolucion({ prestamo, onClose, onHecho }) {
       pie={resultado
         ? <button className="btn-primary" onClick={onClose}>Listo</button>
         : <><button className="btn-ghost" onClick={onClose}>Cancelar</button>
-            <button className="btn-primary" form="form-dev" disabled={enviando || sinCaja}>Confirmar devolución</button></>}
+            <button className="btn-primary" form="form-dev" disabled={enviando || sinCaja || sinPermisoCobro}>Confirmar devolución</button></>}
     >
       {resultado ? (
         <>
@@ -188,7 +197,20 @@ function RegistrarDevolucion({ prestamo, onClose, onHecho }) {
               : <div className="info-box" style={{ gridColumn: 'span 2' }}>{prestamo.tipo_prestamo === 'ABIERTO' ? 'Préstamo abierto (antiguo): no genera multa por retraso.' : 'Dentro del plazo: no se generará multa por retraso.'}</div>}
           {sinCaja && (
             <div className="error-form" style={{ gridColumn: 'span 2', margin: 0 }}>
-              No hay ninguna caja abierta. Ábrela en la sección <b>Caja</b> para poder cobrar el préstamo.
+              No hay ninguna caja abierta. Pide al administrador que la abra para registrar la devolución.
+            </div>
+          )}
+          {sinPermisoCobro && (
+            <div className="error-form" style={{ gridColumn: 'span 2', margin: 0 }}>
+              Es un préstamo antiguo: se cobra <b>{fmtSoles(prestamo.precio_copia)}</b> al devolverlo y solo lo cobra
+              el encargado de la caja (<b>{caja.caja_abierta.nombre_encargado}</b>) o el administrador.
+            </div>
+          )}
+          {hayCaja && (
+            <div className="info-box" style={{ gridColumn: 'span 2', margin: 0 }}>
+              Se devuelve en la caja <b className="mono">C{String(caja.caja_abierta.id).padStart(3, '0')}</b>
+              {prestamo.id_caja_inicio && <> (empezó en la caja <b className="mono">C{String(prestamo.id_caja_inicio).padStart(3, '0')}</b>)</>}.
+              {prestamo.cobro_al_prestar && ' El precio ya se pagó al prestar.'}
             </div>
           )}
           <Campo label="Estado del libro al devolverlo" ancho={2}>
@@ -228,7 +250,7 @@ function RegistrarDevolucion({ prestamo, onClose, onHecho }) {
             </div>
           )}
           {tienePrecio && (
-            <Campo label="Forma de pago del préstamo" ayuda={`Se cobra ${fmtSoles(prestamo.precio_copia)}. La multa se cobra aparte.`}>
+            <Campo label="Forma de pago del préstamo (antiguo)" ayuda={`Se cobra ${fmtSoles(prestamo.precio_copia)}. La multa se cobra aparte.`}>
               <select value={metodo} onChange={(e) => setMetodo(e.target.value)}>
                 {METODOS_DEVOLUCION.map((m) => <option key={m} value={m}>{nombreMetodo[m]}</option>)}
               </select>

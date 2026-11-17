@@ -15,4 +15,7 @@ public interface PagoMultaRepository extends JpaRepository<PagoMulta, Long> {
     List<PagoMulta> findByMultaIdIn(Collection<Long> idsMulta);
 
     List<PagoMulta> findByMultaIdOrderByFechaPagoAsc(Long idMulta);
+
+    /** Pagos de multa de un cliente (Ficha 360). */
+    List<PagoMulta> findByMultaUsuarioIdOrderByFechaPagoDesc(Long idUsuario);
 }

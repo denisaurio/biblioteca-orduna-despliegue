@@ -180,19 +180,35 @@ lo acepta. "En revisión" es un estado **derivado** del último comprobante.
 Aprobar es idempotente: si el pedido ya estaba pagado, no se cobra dos veces ni se vuelve a
 notificar.
 
+### CRM: Ficha 360 del cliente (solo gerente)
+| Método | Ruta | Para qué |
+|---|---|---|
+| GET | `/api/crm/clientes/{id}` | Datos, resumen, préstamos con sus cajas, multas, pagos, sanciones y notas |
+| POST | `/api/crm/clientes/{id}/notas` `{"texto":"Llamó, paga el viernes"}` | Nota interna (el lector no la ve) |
+| DELETE | `/api/crm/notas/{id}` | Borra una nota |
+
 ### Caja (el cajón de dinero)
 | Método | Ruta | Quién | Para qué |
 |---|---|---|---|
-| GET | `/api/cajas/actual` | 🧑‍💼 | La caja abierta + el resumen de hoy |
-| POST | `/api/cajas` `{"monto_inicial":50,"observaciones":""}` | 🧑‍💼 | Abre el cajón (falla si ya hay una abierta) |
-| POST | `/api/cajas/{id}/cerrar` `{"monto_final_declarado":120,"observaciones":""}` | 🧑‍💼 | Cierra y hace el arqueo (sobrante/faltante) |
-| GET | `/api/cajas?desde=&hasta=` | 🧑‍💼 | Historial de cajas |
-| GET | `/api/cajas/{id}` | 🧑‍💼 | Una caja con sus movimientos |
+| GET | `/api/cajas/actual` | 🧑‍💼 | La caja abierta + el resumen de hoy + `puedo_cobrar` + `por_cobrar` |
+| POST | `/api/cajas` `{"monto_inicial":50,"id_encargado":2,"observaciones":""}` | 👑 | Abre el cajón con su encargado (falla si ya hay una abierta) |
+| PUT | `/api/cajas/{id}/encargado` `{"id_encargado":4}` | 👑 | Cambia el encargado sin cerrar (queda el historial) |
+| POST | `/api/cajas/{id}/arqueo` `{"monto_contado":120,"observaciones":""}` | encargado o 👑 | El encargado declara el efectivo contado |
+| POST | `/api/cajas/{id}/cerrar` `{"monto_final_declarado":120,"observaciones":""}` | 👑 | Cierra y hace el arqueo (sin monto: usa el del encargado) |
+| GET | `/api/cajas?desde=&hasta=` | 🧑‍💼 | Historial de cajas (con encargado e historial de encargados) |
+| GET | `/api/cajas/{id}` | 🧑‍💼 | Una caja con sus movimientos, `prestamos_iniciados` y `prestamos_finalizados` |
 | GET | `/api/cajas/pendientes` | 🧑‍💼 | Préstamos sin devolver, reservas por recoger y en cola, pedidos sin cobrar |
 
-Es **una sola caja** para toda la biblioteca (el personal se turna): la columna `caja_abierta` es
-UNIQUE y la base no deja abrir dos a la vez. El dinero solo entra por `caja_movimientos`: si no
-hay caja abierta, el cobro se rechaza con 400.
+Es **una sola caja** para toda la biblioteca: la columna `caja_abierta` es UNIQUE y la base no
+deja abrir dos a la vez. **Solo el gerente** la abre, la cierra y cambia el **encargado**
+(`cajas.id_encargado`, historial en `caja_encargados`). **Solo el encargado o el gerente
+cobran** (si no, 400 "Solo el encargado de la caja (...) o el administrador pueden cobrar").
+El dinero solo entra por `caja_movimientos`: sin caja abierta no se presta, no se devuelve
+ni se cobra (400).
+
+**Cajas relacionadas**: cada préstamo guarda `id_caja_inicio` (la caja donde se pagó) e
+`id_caja_fin` (la caja donde se devolvió); cada pago de multa queda en la caja de su
+movimiento. Las multas traen `id_caja_prestamo`, `id_caja_devolucion` y `cajas_pago`.
 
 Movimientos: `COBRO_PRESTAMO_FECHA_FIJA`, `COBRO_PRESTAMO_ABIERTO` (al devolver, por el precio de
 la copia), `COBRO_MULTA` (el efectivo recibido; el 15 % de descuento va en `descuento`),
@@ -247,7 +263,17 @@ Respuesta paginada: `{"contenido":[...],"pagina":0,"tamanio":10,"total_elementos
 |---|---|---|
 | GET | `/api/usuarios?q=` (paso 1) · `/api/libros/buscar?q=` (paso 2) | 🧑‍💼 |
 | POST | `/api/prestamos` `{"id_libro":1,"id_usuario_lector":3,"tipo_prestamo":"PERSONALIZADO","dias_prestamo":10,"tarifa_multa_diaria":5.00}` | 🧑‍💼 |
-| GET | `/api/prestamos?estado=ACTIVOS\|VENCIDOS\|DEVUELTOS\|TODOS&q=` | 🧑‍💼 |
+| GET | `/api/prestamos?estado=ACTIVOS\|VENCIDOS\|DEVUELTOS\|POR_COBRAR\|TODOS&q=` | 🧑‍💼 |
+| POST | `/api/prestamos/{id}/cobrar` `{"metodo_pago":"EFECTIVO"}` | encargado o 👑 |
+| POST | `/api/prestamos/{id}/anular` `{"motivo":"No pagó"}` | 🧑‍💼 |
+
+**El precio se cobra al prestar** (body: `metodo_pago`, por defecto `EFECTIVO`). Si presta el
+encargado de la caja o el gerente, se cobra en el acto y el préstamo nace `ACTIVO`. Si presta
+otro bibliotecario, nace `POR_COBRAR`: el ejemplar queda apartado y el libro no sale hasta que
+el encargado lo cobra (las fechas se cuentan desde el cobro) o se anula (`ANULADO`, la copia se
+libera). Los préstamos antiguos (`cobro_al_prestar = false`) pagan al devolver. La respuesta trae
+`id_caja_inicio`, `id_caja_fin`, `cobro_al_prestar` y, en el detalle de caja y la Ficha 360,
+`id_caja_cobro` y `fecha_devolucion`.
 
 Con `id_libro` el sistema elige el ejemplar (el apartado por reserva o el primero disponible).
 `tipo_prestamo`: `FECHA_FIJA` (fijo: vence en `dias_max`) o `PERSONALIZADO` (vence en
@@ -391,10 +417,12 @@ proxies como Traefik/Nginx no corten la conexión.
 | No se elimina un autor con libros asociados | `AutorService.eliminarAutor` |
 | El estado de los ejemplares lo cambian préstamos, devoluciones y reservas | `EjemplarService` |
 | El alta de libro es solo de la obra original: las copias se dan de alta aparte, en Ejemplares (un libro puede no tener ninguna todavía) | `LibroService.crearEjemplares`, `EjemplarService.registrarEjemplar` |
-| Al devolver un préstamo (fecha fija **o** abierto) se cobra el precio de la copia; la multa se cobra aparte | `DevolucionService`, `CajaService` |
+| El precio de la copia se cobra al prestar (préstamos antiguos: al devolver); la multa se cobra aparte | `PrestamoService`, `DevolucionService`, `CajaService` |
+| Solo el gerente abre/cierra la caja y elige al encargado; solo el encargado o el gerente cobran | `CajaService.exigirGerente`, `CajaService.puedeCobrar` |
+| Cada préstamo guarda su caja de inicio y de fin | `prestamos.id_caja_inicio`, `prestamos.id_caja_fin` |
 | Pagar en efectivo aplica 15 % de descuento: el monto digitado es la deuda que se salda y la biblioteca cobra el 85 % | `DevolucionService.DESCUENTO_EFECTIVO` |
 | La caja es una sola: solo una abierta, con monto inicial y arqueo al cerrar | `CajaService`, columna `cajas.caja_abierta` UNIQUE |
-| No se cobra sin caja abierta | `CajaService.registrar` → `OperacionInvalidaException` (400) |
+| No se presta, devuelve ni cobra sin caja abierta | `CajaService.cajaAbiertaParaOperar`, `CajaService.registrar` → `OperacionInvalidaException` (400) |
 | El pago con Yape es QR estático + comprobante; el personal lo aprueba o lo deniega | `ComprobanteService`, `PagoYapeController` |
 | El comprobante no cambia el estado del pedido ("en revisión" es derivado) | `AccesoVirtualResponseDTO.estadoComprobante` |
 | Las acciones del personal quedan auditadas; solo el gerente las ve | `AuditoriaService`, `AuditoriaController` |

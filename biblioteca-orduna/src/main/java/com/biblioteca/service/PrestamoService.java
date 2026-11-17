@@ -1,5 +1,8 @@
 package com.biblioteca.service;
 
+import com.biblioteca.dto.AnularPrestamoDTO;
+import com.biblioteca.dto.CajaMovimientoDTO;
+import com.biblioteca.dto.CobrarPrestamoDTO;
 import com.biblioteca.dto.NuevoPrestamoDTO;
 import com.biblioteca.dto.PrestamoResponseDTO;
 import com.biblioteca.entity.*;
@@ -38,11 +41,14 @@ public class PrestamoService {
     private final SancionService sancionService;
     private final ConfiguracionService configuracionService;
     private final AuditoriaService auditoriaService;
+    private final CajaService cajaService;
+    private final ReservaService reservaService;
 
     public PrestamoService(PrestamoRepository prestamoRepository, EjemplarRepository ejemplarRepository,
                            ReservaRepository reservaRepository, MultaRepository multaRepository,
                            UsuarioService usuarioService, SancionService sancionService,
-                           ConfiguracionService configuracionService, AuditoriaService auditoriaService) {
+                           ConfiguracionService configuracionService, AuditoriaService auditoriaService,
+                           CajaService cajaService, ReservaService reservaService) {
         this.prestamoRepository = prestamoRepository;
         this.ejemplarRepository = ejemplarRepository;
         this.reservaRepository = reservaRepository;
@@ -51,6 +57,8 @@ public class PrestamoService {
         this.sancionService = sancionService;
         this.configuracionService = configuracionService;
         this.auditoriaService = auditoriaService;
+        this.cajaService = cajaService;
+        this.reservaService = reservaService;
     }
 
     /**
@@ -60,6 +68,10 @@ public class PrestamoService {
      * - FECHA_FIJA (fijo): vence en dias_max días. PERSONALIZADO: vence en los días que elige el personal.
      * - Los dos generan multa: se copia la tarifa vigente o la personalizada que mande el personal.
      * - ABIERTO ya no se puede crear (400).
+     * - Hace falta una caja abierta: el préstamo guarda la caja donde empieza.
+     * - El precio de la copia se cobra AL PRESTAR. Si presta el encargado de la caja (o el
+     *   gerente), se cobra en el acto y el libro sale (ACTIVO). Si presta otro bibliotecario,
+     *   queda POR_COBRAR: el ejemplar se aparta y el encargado lo cobra en la sección Caja.
      * Errores: UsuarioSancionadoException (403), EjemplarNoDisponibleException (400),
      * OperacionInvalidaException (400) si tiene multas sin pagar.
      */
@@ -67,6 +79,7 @@ public class PrestamoService {
     public PrestamoResponseDTO registrarPrestamo(NuevoPrestamoDTO datos, Long idBibliotecario) {
         Usuario bibliotecario = usuarioService.buscarPersonal(idBibliotecario);
         Usuario lector = usuarioService.buscarLector(datos.idUsuarioLector());
+        Caja caja = cajaService.cajaAbiertaParaOperar();
 
         sancionService.verificarSinSancion(lector.getId());
         if (multaRepository.existsByUsuarioIdAndEstadoIn(lector.getId(),
@@ -122,14 +135,78 @@ public class PrestamoService {
         p.setFechaVencimiento(LocalDate.now().plusDays(dias));
         p.setTarifaMultaDiaria(tarifa);
         p.setTarifaPersonalizada(tarifaPersonalizada);
-        p.setEstado(EstadoPrestamo.ACTIVO);
+        // Se cobra al prestar. Si quien presta no puede cobrar (no es el encargado de la caja
+        // ni el gerente), el préstamo queda POR_COBRAR y el ejemplar apartado (PRESTADO).
+        boolean hayPrecio = p.getPrecioCopia() != null && p.getPrecioCopia().signum() > 0;
+        boolean cobraAhora = CajaService.puedeCobrar(caja, bibliotecario);
+        p.setCobroAlPrestar(true);
+        p.setCajaInicio(caja);
+        p.setEstado(hayPrecio && !cobraAhora ? EstadoPrestamo.POR_COBRAR : EstadoPrestamo.ACTIVO);
         ejemplar.setEstado(EstadoEjemplar.PRESTADO);
         p = prestamoRepository.save(p);
+        CajaMovimientoDTO cobro = null;
+        if (hayPrecio && cobraAhora) {
+            MetodoPago metodo = datos.metodoPago() != null ? datos.metodoPago() : MetodoPago.EFECTIVO;
+            cobro = cajaService.registrarCobroPrestamo(p, null, metodo, idBibliotecario);
+        }
         auditoriaService.registrar(idBibliotecario, TipoAccionAuditoria.REGISTRAR_PRESTAMO, "PRESTAMO", p.getId(),
                 "Prestó '" + ejemplar.getLibro().getTitulo() + "' (" + ejemplar.getCodigoInventario()
                         + ") a " + lector.getNombreCompleto() + " (" + nombreTipo(tipo) + ", " + dias
                         + (dias == 1 ? " día" : " días") + ", multa S/ " + tarifa + " por día"
-                        + (tarifaPersonalizada ? " personalizada" : "") + ")");
+                        + (tarifaPersonalizada ? " personalizada" : "") + ") en la caja #" + caja.getId()
+                        + (cobro != null ? " · cobró S/ " + cobro.monto() + " (" + cobro.metodoPago().toLowerCase() + ")"
+                            : hayPrecio ? " · queda por cobrar (S/ " + p.getPrecioCopia() + ")" : ""));
+        return aDTO(p, cobro == null ? null : caja.getId(), null);
+    }
+
+    /**
+     * El encargado de la caja (o el gerente) cobra un préstamo POR_COBRAR. Recién ahora el
+     * libro sale: la fecha del préstamo y la de devolución se cuentan desde este momento,
+     * y la caja de inicio es la caja donde se cobró.
+     */
+    @Transactional
+    public PrestamoResponseDTO cobrarPrestamo(Long idPrestamo, CobrarPrestamoDTO datos, Long idActor) {
+        cajaService.exigirPuedeCobrar(idActor);
+        Prestamo p = prestamoRepository.findByIdForUpdate(idPrestamo)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No existe el préstamo con id " + idPrestamo));
+        if (p.getEstado() != EstadoPrestamo.POR_COBRAR) {
+            throw new OperacionInvalidaException("El préstamo " + idPrestamo + " no está pendiente de cobro");
+        }
+        Caja caja = cajaService.cajaAbiertaParaOperar();
+        int dias = p.getDiasPrestamo() != null ? p.getDiasPrestamo()
+                : configuracionService.obtenerParametros().getDiasMax();
+        p.setFechaPrestamo(LocalDateTime.now());
+        p.setFechaVencimiento(LocalDate.now().plusDays(dias));
+        p.setCajaInicio(caja);
+        p.setEstado(EstadoPrestamo.ACTIVO);
+        CajaMovimientoDTO cobro = cajaService.registrarCobroPrestamo(p, null, datos.metodoPago(), idActor);
+        auditoriaService.registrar(idActor, TipoAccionAuditoria.COBRAR_PRESTAMO, "PRESTAMO", p.getId(),
+                "Cobró el préstamo de '" + p.getEjemplar().getLibro().getTitulo() + "' a "
+                        + p.getLector().getNombreCompleto() + " en la caja #" + caja.getId()
+                        + (cobro == null ? "" : ": S/ " + cobro.monto() + " (" + cobro.metodoPago().toLowerCase() + ")"));
+        return aDTO(p, cobro == null ? null : caja.getId(), null);
+    }
+
+    /**
+     * El cliente no pagó: el préstamo POR_COBRAR se anula y el ejemplar se libera (pasa al
+     * primero de la cola de reservas o queda DISPONIBLE). Cualquier miembro del personal puede.
+     */
+    @Transactional
+    public PrestamoResponseDTO anularPrestamo(Long idPrestamo, AnularPrestamoDTO datos, Long idActor) {
+        usuarioService.buscarPersonal(idActor);
+        Prestamo p = prestamoRepository.findByIdForUpdate(idPrestamo)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No existe el préstamo con id " + idPrestamo));
+        if (p.getEstado() != EstadoPrestamo.POR_COBRAR) {
+            throw new OperacionInvalidaException("Solo se anula un préstamo que todavía no se cobró");
+        }
+        p.setEstado(EstadoPrestamo.ANULADO);
+        Ejemplar e = ejemplarRepository.findByIdForUpdate(p.getEjemplar().getId())
+                .orElseThrow(() -> new RecursoNoEncontradoException("No existe el ejemplar del préstamo"));
+        reservaService.asignarEjemplarLiberado(e);
+        String motivo = datos == null || datos.motivo() == null || datos.motivo().isBlank() ? null : datos.motivo().trim();
+        auditoriaService.registrar(idActor, TipoAccionAuditoria.ANULAR_PRESTAMO, "PRESTAMO", p.getId(),
+                "Anuló el préstamo de '" + e.getLibro().getTitulo() + "' a " + p.getLector().getNombreCompleto()
+                        + " (no se cobró)" + (motivo == null ? "" : ": " + motivo));
         return aDTO(p);
     }
 
@@ -163,7 +240,7 @@ public class PrestamoService {
 
     /**
      * Pantalla Devoluciones / listado de préstamos.
-     * filtro: ACTIVOS (por defecto, incluye vencidos), VENCIDOS, DEVUELTOS o TODOS.
+     * filtro: ACTIVOS (por defecto, incluye vencidos), VENCIDOS, DEVUELTOS, POR_COBRAR o TODOS.
      * q: busca por nombre o DNI del lector, título o código de ejemplar.
      */
     @Transactional(readOnly = true)
@@ -175,9 +252,11 @@ public class PrestamoService {
             case "VENCIDOS" -> prestamoRepository.findByEstadoOrderByFechaVencimientoAsc(EstadoPrestamo.ACTIVO).stream()
                     .filter(p -> p.estaVencido(hoy));
             case "DEVUELTOS" -> prestamoRepository.findByEstadoOrderByFechaVencimientoAsc(EstadoPrestamo.DEVUELTO).stream();
+            case "POR_COBRAR" -> prestamoRepository.findByEstadoOrderByFechaPrestamoAsc(EstadoPrestamo.POR_COBRAR).stream();
             case "TODOS" -> prestamoRepository.findAll().stream()
                     .sorted(Comparator.comparing(Prestamo::getFechaPrestamo).reversed());
-            default -> throw new OperacionInvalidaException("Filtro inválido: use ACTIVOS, VENCIDOS, DEVUELTOS o TODOS");
+            default -> throw new OperacionInvalidaException(
+                    "Filtro inválido: use ACTIVOS, VENCIDOS, DEVUELTOS, POR_COBRAR o TODOS");
         };
         String texto = q == null ? "" : q.trim().toLowerCase();
         return base.filter(p -> texto.isEmpty() || coincide(p, texto)).map(PrestamoService::aDTO).toList();
@@ -225,10 +304,23 @@ public class PrestamoService {
     }
 
     static PrestamoResponseDTO aDTO(Prestamo p) {
+        return aDTO(p, null, null);
+    }
+
+    /**
+     * idCajaCobro: caja donde se pagó el precio; fechaDevolucion: cuándo volvió el libro.
+     * Los dos son opcionales (los llena CajaService.prestamosConCajas en bloque).
+     */
+    static PrestamoResponseDTO aDTO(Prestamo p, Long idCajaCobro, LocalDateTime fechaDevolucion) {
         LocalDate hoy = LocalDate.now();
         Ejemplar e = p.getEjemplar();
         boolean vencido = p.estaVencido(hoy);
-        String estado = p.getEstado() == EstadoPrestamo.DEVUELTO ? "DEVUELTO" : vencido ? "VENCIDO" : "ACTIVO";
+        String estado = switch (p.getEstado()) {
+            case DEVUELTO -> "DEVUELTO";
+            case POR_COBRAR -> "POR_COBRAR";
+            case ANULADO -> "ANULADO";
+            case ACTIVO -> vencido ? "VENCIDO" : "ACTIVO";
+        };
         int dias = p.getEstado() == EstadoPrestamo.ACTIVO
                 ? DevolucionService.calcularDiasRetraso(p.getFechaVencimiento(), hoy) : 0;
         // Multa que lleva acumulada hoy si sigue sin devolver (se genera de verdad al devolver).
@@ -244,6 +336,10 @@ public class PrestamoService {
                 e.getLibro().getTitulo(), p.getLector().getId(), p.getLector().getNombreCompleto(),
                 p.getLector().getDni(), p.getBibliotecario().getId(), p.getTipo().name(),
                 p.getFechaPrestamo(), p.getFechaVencimiento(), dias, !vencido, estado, p.getPrecioCopia(),
-                diasPrestamo, p.getTarifaMultaDiaria(), p.isTarifaPersonalizada(), multaAcumulada);
+                diasPrestamo, p.getTarifaMultaDiaria(), p.isTarifaPersonalizada(), multaAcumulada,
+                p.getCajaInicio() == null ? null : p.getCajaInicio().getId(),
+                p.getCajaFin() == null ? null : p.getCajaFin().getId(),
+                p.isCobroAlPrestar(), idCajaCobro, fechaDevolucion,
+                p.getBibliotecario().getNombreCompleto());
     }
 }

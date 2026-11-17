@@ -4,8 +4,13 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
-/** Pantalla "Pagos de multa" y "Mis multas". estado: PENDIENTE, PARCIAL o PAGADA. */
+/**
+ * Pantalla "Pagos de multa" y "Mis multas". estado: PENDIENTE, PARCIAL o PAGADA.
+ * id_caja_prestamo / id_caja_devolucion: cajas donde empezó y terminó el préstamo.
+ * cajas_pago: cajas donde se pagó la multa (varias si se pagó en partes).
+ */
 public record MultaResponseDTO(
         Long id,
         @JsonProperty("id_usuario") Long idUsuario,
@@ -21,5 +26,8 @@ public record MultaResponseDTO(
         String estado,
         @JsonProperty("fecha_generacion") LocalDateTime fechaGeneracion,
         @JsonProperty("ultimo_metodo_pago") String ultimoMetodoPago,
-        @JsonProperty("fecha_ultimo_pago") LocalDateTime fechaUltimoPago
+        @JsonProperty("fecha_ultimo_pago") LocalDateTime fechaUltimoPago,
+        @JsonProperty("id_caja_prestamo") Long idCajaPrestamo,
+        @JsonProperty("id_caja_devolucion") Long idCajaDevolucion,
+        @JsonProperty("cajas_pago") List<Long> cajasPago
 ) {}

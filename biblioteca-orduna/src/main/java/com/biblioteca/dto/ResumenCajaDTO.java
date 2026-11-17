@@ -14,6 +14,8 @@ import java.util.Map;
  * total_caja: todo lo cobrado en la caja abierta.
  * por_metodo / por_tipo: el desglose de HOY.
  * movimientos: los movimientos de la caja abierta.
+ * puedo_cobrar: true si el usuario logueado es el encargado de la caja abierta o el gerente.
+ * por_cobrar: préstamos registrados por otro bibliotecario que el encargado debe cobrar.
  */
 public record ResumenCajaDTO(
         @JsonProperty("caja_abierta") CajaResponseDTO cajaAbierta,
@@ -21,5 +23,7 @@ public record ResumenCajaDTO(
         @JsonProperty("total_caja") BigDecimal totalCaja,
         @JsonProperty("por_metodo") Map<String, BigDecimal> porMetodo,
         @JsonProperty("por_tipo") Map<String, BigDecimal> porTipo,
-        List<CajaMovimientoDTO> movimientos
+        List<CajaMovimientoDTO> movimientos,
+        @JsonProperty("puedo_cobrar") boolean puedoCobrar,
+        @JsonProperty("por_cobrar") List<PrestamoResponseDTO> porCobrar
 ) {}

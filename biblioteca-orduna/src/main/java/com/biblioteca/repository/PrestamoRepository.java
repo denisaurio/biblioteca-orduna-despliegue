@@ -10,6 +10,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 public interface PrestamoRepository extends JpaRepository<Prestamo, Long> {
     long countByLectorIdAndEstado(Long idLector, EstadoPrestamo estado);
@@ -34,6 +35,20 @@ public interface PrestamoRepository extends JpaRepository<Prestamo, Long> {
     List<Prestamo> findByEstadoOrderByFechaVencimientoAsc(EstadoPrestamo estado);
 
     List<Prestamo> findByLectorIdOrderByFechaPrestamoDesc(Long idLector);
+
+    /** Préstamos que empezaron en una caja (detalle de caja). */
+    List<Prestamo> findByCajaInicioIdOrderByFechaPrestamoAsc(Long idCaja);
+
+    /** Préstamos que terminaron (se devolvieron) en una caja. */
+    List<Prestamo> findByCajaFinIdOrderByFechaPrestamoAsc(Long idCaja);
+
+    /** Préstamos en un estado, del más antiguo al más nuevo (los POR_COBRAR de la caja). */
+    List<Prestamo> findByEstadoOrderByFechaPrestamoAsc(EstadoPrestamo estado);
+
+    /** Préstamo bloqueado mientras se cobra o se anula (dos personas no lo cobran a la vez). */
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT p FROM Prestamo p WHERE p.id = :id")
+    Optional<Prestamo> findByIdForUpdate(@Param("id") Long id);
 
     /**
      * Próxima devolución de cada libro: [id_libro, fecha de vencimiento más cercana] entre sus

@@ -27,13 +27,16 @@ public class CajaController {
         this.cajaService = cajaService;
     }
 
-    /** GET /api/cajas/actual - la caja abierta (si hay) y el resumen de hoy. */
+    /** GET /api/cajas/actual - la caja abierta (si hay), el resumen de hoy y si el usuario puede cobrar. */
     @GetMapping("/actual")
-    public ResumenCajaDTO actual() {
-        return cajaService.resumen();
+    public ResumenCajaDTO actual(@AuthenticationPrincipal UsuarioAutenticado actor) {
+        return cajaService.resumen(actor.id());
     }
 
-    /** POST /api/cajas - abrir el cajón. Body: {"monto_inicial":50,"observaciones":""} */
+    /**
+     * POST /api/cajas - abrir el cajón (solo gerente).
+     * Body: {"monto_inicial":50,"id_encargado":2,"observaciones":""}
+     */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public CajaResponseDTO abrir(@Valid @RequestBody AbrirCajaDTO datos,
@@ -41,7 +44,21 @@ public class CajaController {
         return cajaService.abrir(datos, actor.id());
     }
 
-    /** POST /api/cajas/{id}/cerrar - cerrar con el efectivo contado. */
+    /** PUT /api/cajas/{id}/encargado - cambiar el encargado sin cerrar (solo gerente). Body: {"id_encargado":2} */
+    @PutMapping("/{idCaja}/encargado")
+    public CajaResponseDTO cambiarEncargado(@PathVariable Long idCaja, @Valid @RequestBody AsignarEncargadoDTO datos,
+                                            @AuthenticationPrincipal UsuarioAutenticado actor) {
+        return cajaService.cambiarEncargado(idCaja, datos, actor.id());
+    }
+
+    /** POST /api/cajas/{id}/arqueo - el encargado declara el efectivo contado. Body: {"monto_contado":120.50} */
+    @PostMapping("/{idCaja}/arqueo")
+    public CajaResponseDTO arquear(@PathVariable Long idCaja, @Valid @RequestBody ArqueoCajaDTO datos,
+                                   @AuthenticationPrincipal UsuarioAutenticado actor) {
+        return cajaService.arquear(idCaja, datos, actor.id());
+    }
+
+    /** POST /api/cajas/{id}/cerrar - cerrar (solo gerente); sin monto se usa el del arqueo del encargado. */
     @PostMapping("/{idCaja}/cerrar")
     public CajaResponseDTO cerrar(@PathVariable Long idCaja, @Valid @RequestBody CerrarCajaDTO datos,
                                   @AuthenticationPrincipal UsuarioAutenticado actor) {

@@ -52,6 +52,11 @@ export function codigo(prefijo, id) {
   return `${prefijo}${String(id ?? '').padStart(3, '0')}`;
 }
 
+/** Código corto de una caja: C003 (cada apertura de la caja es una caja numerada). */
+export function codCaja(id) {
+  return id ? `C${String(id).padStart(3, '0')}` : '—';
+}
+
 export const nombreRol = { LECTOR: 'Lector', BIBLIOTECARIO: 'Bibliotecario', GERENTE: 'Gerente', INVITADO: 'Invitado' };
 
 export const nombreTipoUsuario = { ESTUDIANTE: 'Estudiante', DOCENTE: 'Docente', EXTERNO: 'Externo' };

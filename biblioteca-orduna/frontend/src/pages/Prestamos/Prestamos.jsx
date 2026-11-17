@@ -4,16 +4,20 @@
 // Un libro sin copias libres sale en gris con la fecha en que vuelve la primera copia prestada.
 // Reglas (las valida el backend): solo se presta si hay ejemplar disponible, el lector no puede
 // tener sanción activa ni multas pendientes. El bibliotecario se toma del JWT.
+// Cobro: el cliente paga el precio AL PRESTAR, en la caja abierta. Si quien presta es el
+// encargado de la caja (o el administrador), cobra en el acto; si no, el préstamo queda
+// "por cobrar" y el encargado lo cobra en la sección Caja. Sin caja abierta no se presta.
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getUsuarios } from '../../api/usuariosApi.js';
 import { getLibros, buscarLibros } from '../../api/librosApi.js';
 import { crearPrestamo } from '../../api/prestamosApi.js';
 import { getConfiguracion } from '../../api/configuracionApi.js';
+import { getCajaActual } from '../../api/cajaApi.js';
 import { useApi, useAccion, useDebounce, useRefrescoTiempoReal } from '../../hooks.js';
 import Estado from '../../components/common/Estado.jsx';
 import { Cargando, Vacio } from '../../components/common/Cargando.jsx';
-import { estadoLibro, estadoUsuario, nombreTipoPrestamo } from '../../utils/estados.js';
+import { estadoLibro, estadoUsuario, metodosPago, nombreMetodo, nombreTipoPrestamo } from '../../utils/estados.js';
 import { codigo, fmtFecha, fmtFechaHora, fmtSoles, hoyISO, iniciales, nombreTipoUsuario } from '../../utils/formato.js';
 import './Prestamos.css';
 
@@ -27,6 +31,7 @@ function Prestamos() {
   const [diasPersonalizados, setDiasPersonalizados] = useState('');
   const [modoMulta, setModoMulta] = useState('CONFIG');
   const [tarifaPersonalizada, setTarifaPersonalizada] = useState('');
+  const [metodoPago, setMetodoPago] = useState('EFECTIVO');
   const [buscaUsuario, setBuscaUsuario] = useState('');
   const [buscaLibro, setBuscaLibro] = useState('');
   const [resultado, setResultado] = useState(null);
@@ -39,11 +44,15 @@ function Prestamos() {
   const { datos: libros, cargando: cargandoL, recargar: recargarLibros } = useApi(
     () => (qL.trim() ? buscarLibros(qL.trim()) : getLibros()), [qL], []);
   const { datos: config } = useApi(() => getConfiguracion(), [], null);
+  const { datos: cajaHoy, recargar: recargarCaja } = useApi(() => getCajaActual(), [], null);
+  const caja = cajaHoy?.caja_abierta;
+  const puedoCobrar = cajaHoy?.puedo_cobrar === true;
 
   // Si otro bibliotecario presta o devuelve, cambian los libros disponibles y los lectores.
-  useRefrescoTiempoReal(['prestamos', 'devoluciones', 'reservas'], () => {
+  useRefrescoTiempoReal(['prestamos', 'devoluciones', 'reservas', 'cajas'], () => {
     recargarUsuarios({ silencioso: true });
     recargarLibros({ silencioso: true });
+    recargarCaja({ silencioso: true });
   });
 
   const diasMax = config?.dias_max ?? 7;
@@ -55,7 +64,7 @@ function Prestamos() {
   // Multa por día: la de la configuración o una personalizada.
   const tarifa = modoMulta === 'PERSONALIZADA' ? Number(tarifaPersonalizada) : tarifaConfig;
   const tarifaValida = modoMulta === 'CONFIG' || (tarifaPersonalizada !== '' && tarifa >= 0);
-  const puedeConfirmar = paso === 3 && diasValidos && tarifaValida;
+  const puedeConfirmar = paso === 3 && diasValidos && tarifaValida && !!caja;
 
   const fechaDevolucion = diasValidos ? fmtFecha(hoyISO(diasElegidos)) : '—';
   const horaActual = new Date().toTimeString().slice(0, 5);
@@ -68,15 +77,16 @@ function Prestamos() {
         tipo_prestamo: tipo,
         dias_prestamo: tipo === 'PERSONALIZADO' ? diasElegidos : null,
         tarifa_multa_diaria: modoMulta === 'PERSONALIZADA' ? tarifa : null,
+        metodo_pago: puedoCobrar ? metodoPago : null,
       }),
-      'Préstamo registrado'
+      puedoCobrar ? 'Préstamo registrado y cobrado' : 'Préstamo registrado: queda por cobrar'
     );
     if (r) setResultado(r);
   };
 
   const reiniciar = () => {
     setPaso(1); setUsuarioSel(null); setLibroSel(null); setTipo('FECHA_FIJA'); setResultado(null);
-    setDiasPersonalizados(''); setModoMulta('CONFIG'); setTarifaPersonalizada('');
+    setDiasPersonalizados(''); setModoMulta('CONFIG'); setTarifaPersonalizada(''); setMetodoPago('EFECTIVO');
     setBuscaUsuario(''); setBuscaLibro('');
   };
 
@@ -86,6 +96,20 @@ function Prestamos() {
         <div><h1>Nuevo préstamo</h1><p>Complete los pasos para registrar un nuevo préstamo.</p></div>
         <Link to="/devoluciones" className="btn-ghost">Ver préstamos activos</Link>
       </div>
+
+        {cajaHoy && !caja && (
+          <div className="alert-box" style={{ marginBottom: 16 }}>
+            <span className="alert-icon">🔒</span>
+            <div><b>No hay ninguna caja abierta</b>
+              <div className="alert-sub">El cliente paga al prestar: pide al administrador que abra la caja y elija al encargado.</div></div>
+          </div>
+        )}
+        {caja && !puedoCobrar && (
+          <div className="info-box" style={{ marginBottom: 16 }}>
+            El encargado de la caja es <b>{caja.nombre_encargado}</b>. Los préstamos que registres quedarán
+            <b> por cobrar</b>: el libro sale cuando el encargado cobre en la sección Caja.
+          </div>
+        )}
 
       <div className="card wizard-steps-card">
         <div className="wizard-steps">
@@ -101,8 +125,12 @@ function Prestamos() {
         <div className="card wizard-panel">
           {resultado ? (
             <>
-              <h3>✓ Préstamo registrado</h3>
-              <p className="hint">Entregue el ejemplar indicado al lector.</p>
+              <h3>{resultado.estado === 'POR_COBRAR' ? '⏳ Préstamo por cobrar' : '✓ Préstamo registrado'}</h3>
+              <p className="hint">
+                {resultado.estado === 'POR_COBRAR'
+                  ? <>Envíe al lector con el encargado de la caja (<b>{caja?.nombre_encargado}</b>). El libro sale cuando pague.</>
+                  : 'Entregue el ejemplar indicado al lector.'}
+              </p>
               <dl className="detalle">
                 <dt>N.º de préstamo</dt><dd className="mono">{codigo('P', resultado.id)}</dd>
                 <dt>Ejemplar</dt><dd className="mono">{resultado.codigo_inventario}</dd>
@@ -112,6 +140,12 @@ function Prestamos() {
                 <dt>Devolver hasta</dt><dd>{resultado.fecha_vencimiento ? fmtFecha(resultado.fecha_vencimiento) : '—'}</dd>
                 <dt>Multa por retraso</dt><dd className="mono">{fmtSoles(resultado.tarifa_multa_diaria)} por día{resultado.tarifa_personalizada ? ' (personalizada)' : ''}</dd>
                 <dt>Precio del ejemplar</dt><dd className="mono">{resultado.precio_copia != null ? fmtSoles(resultado.precio_copia) : '—'}</dd>
+                <dt>Pago</dt>
+                <dd>
+                  {resultado.estado === 'POR_COBRAR' ? 'Por cobrar'
+                    : resultado.id_caja_cobro ? <>Pagado en la caja <b className="mono">C{String(resultado.id_caja_cobro).padStart(3, '0')}</b></>
+                      : 'Sin cobro (el ejemplar no tiene precio)'}
+                </dd>
               </dl>
               <button className="btn-primary" style={{ marginTop: 18 }} onClick={reiniciar}>Registrar otro préstamo</button>
             </>
@@ -237,6 +271,14 @@ function Prestamos() {
                       </div>
                     </label>
                   </div>
+                  {puedoCobrar && (
+                    <>
+                      <label style={{ marginTop: 18 }}>Pago del préstamo (se cobra ahora)</label>
+                      <select className="wizard-input" value={metodoPago} onChange={(e) => setMetodoPago(e.target.value)}>
+                        {metodosPago.map((m) => <option key={m} value={m}>{nombreMetodo[m]}</option>)}
+                      </select>
+                    </>
+                  )}
                   {diasValidos && tarifaValida && (
                     <div className="info-box" style={{ marginTop: 12 }}>
                       Si devuelve el libro después del <b>{fechaDevolucion}</b> pagará <b>{fmtSoles(tarifa)}</b> por cada día de retraso
@@ -268,10 +310,14 @@ function Prestamos() {
             <span>Precio del ejemplar</span>
             <b>{libroSel?.precio_compra != null ? fmtSoles(libroSel.precio_compra) : '—'}</b>
           </div>
+          <div className="summary-row">
+            <span>Caja</span>
+            <b>{caja ? <>C{String(caja.id).padStart(3, '0')}<br /><small>{puedoCobrar ? `Cobra ahora · ${nombreMetodo[metodoPago]}` : `Por cobrar · encargado ${caja.nombre_encargado}`}</small></> : 'Sin caja abierta'}</b>
+          </div>
           {!resultado && (
             <button className="btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: 16 }}
                     disabled={!puedeConfirmar || enviando} onClick={confirmar}>
-              {enviando ? 'Registrando...' : 'Confirmar préstamo'}
+              {enviando ? 'Registrando...' : puedoCobrar ? 'Cobrar y prestar' : 'Confirmar préstamo'}
             </button>
           )}
         </div>

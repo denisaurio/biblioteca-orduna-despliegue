@@ -121,6 +121,10 @@ public class ReporteService {
         List<FilaPrestamoDTO> detalle = new ArrayList<>();
         long activos = 0, vencidos = 0, devueltos = 0, conRetraso = 0;
         for (Prestamo p : prestamos) {
+            // POR_COBRAR y ANULADO: el libro no salió, no cuentan como préstamos del reporte.
+            if (p.getEstado() == EstadoPrestamo.POR_COBRAR || p.getEstado() == EstadoPrestamo.ANULADO) {
+                continue;
+            }
             Devolucion d = devPorPrestamo.get(p.getId());
             String estado;
             if (p.getEstado() == EstadoPrestamo.DEVUELTO) {

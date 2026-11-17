@@ -24,6 +24,7 @@ const I = {
   avisos: <><path d="M6 8a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6Z" /><path d="M10 19a2 2 0 0 0 4 0" /></>,
   bitacora: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 3" /></>,
   reportes: <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />,
+  clientes: <><circle cx="12" cy="8" r="3.5" /><path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6" /><path d="M18.5 4.5l1.5 1.5-1.5 1.5" /></>,
   auditoria: <><path d="M4 5h16v14H4z" /><path d="M8 9h8M8 13h5M8 17h3" /></>,
   config: <><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" /></>,
 };
@@ -70,6 +71,7 @@ function menuPara(rol) {
     { to: '/reportes', label: 'Reportes y cierre', icon: I.reportes },
   ];
   if (rol === 'GERENTE') {
+    admin.push({ to: '/clientes', label: 'Clientes (Ficha 360)', icon: I.clientes });
     admin.push({ to: '/auditoria', label: 'Auditoría', icon: I.auditoria });
     admin.push({ to: '/configuracion', label: 'Configuración', icon: I.config });
   }

@@ -29,7 +29,9 @@ Reemplaza el control manual (fichas en papel) por un sistema digital que cubre:
   - Configuracion parametrica versioning.
   - Libros virtuales: venta y alquiler de PDFs (los archivos viven en R2).
   - Pago con Yape por QR estatico, con el comprobante que aprueba el personal.
-  - Caja: el cajon de dinero (cuanto entro, por que metodo, que falta por recoger).
+  - Caja: el cajon de dinero (quien cobra, cuanto entro, por que metodo, que falta por
+    recoger). Solo el administrador la abre y la cierra y elige al encargado.
+  - Clientes (Ficha 360): CRM del administrador, todo de un lector en una pantalla.
   - Auditoria: que hizo cada persona del personal, con fecha y hora.
 
 Existen tres roles de usuario:
@@ -251,7 +253,10 @@ Ejemplo del flujo real de "registrar un prestamo":
   generos               Catalogo de generos (tabla propia, no texto libre).
   prestamos             Prestamo: ejemplar, lector, bibliotecario, tipo,
                         fecha_prestamo, fecha_devolucion_esperada,
-                        tarifa_multa_diaria, precio_copia, estado.
+                        tarifa_multa_diaria, precio_copia, estado
+                        (ACTIVO, DEVUELTO, POR_COBRAR, ANULADO), id_caja_inicio
+                        (caja donde empezo y se pago), id_caja_fin (caja donde
+                        se devolvio) y cobro_al_prestar (false en los antiguos).
   devoluciones          Cierre del prestamo (1:1 con prestamos): fecha, dias_retraso.
   multas                Deuda generada (1:1 con devoluciones): monto, monto_pagado,
                         estado, concepto (motivo legible de la multa).
@@ -270,10 +275,15 @@ Ejemplo del flujo real de "registrar un prestamo":
                         clave_imagen (en el bucket privado de R2), estado
                         (PENDIENTE/APROBADO/DENEGADO), revisado_por, motivo.
   cajas                 El cajon de dinero: fecha_apertura, fecha_cierre, quien
-                        abrio y quien cerro, monto_inicial, monto_final_declarado,
-                        diferencia (sobrante/faltante), estado y la columna
-                        caja_abierta (UNIQUE: 1 mientras esta abierta, NULL al
-                        cerrarla; es lo que impide abrir dos cajas a la vez).
+                        abrio y quien cerro, id_encargado (quien cobra ahora),
+                        monto_inicial, monto_contado_encargado (arqueo),
+                        monto_final_declarado, diferencia (sobrante/faltante),
+                        estado y la columna caja_abierta (UNIQUE: 1 mientras esta
+                        abierta, NULL al cerrarla; impide abrir dos a la vez).
+  caja_encargados       Quien fue encargado de cada caja: usuario, desde, hasta
+                        (null = sigue) y el gerente que lo asigno.
+  notas_cliente         Notas internas del personal sobre un lector (CRM): texto,
+                        autor y fecha. El lector nunca las ve.
   caja_movimientos      Cada sol que entra al cajon: caja, tipo, monto, descuento,
                         metodo_pago, descripcion, fecha, quien lo cobro y las
                         referencias al prestamo, al pago de multa, a la devolucion
@@ -309,7 +319,9 @@ ENUMERACIONES (se guardan como texto, @Enumerated(EnumType.STRING))
   TipoAccionAuditoria REGISTRAR_LIBRO, EDITAR_LIBRO, ESCANEAR_ISBN, SUBIR_PORTADA,
                     SUBIR_PDF, REGISTRAR_EJEMPLAR, EDITAR_EJEMPLAR,
                     REGISTRAR_PRESTAMO, REGISTRAR_DEVOLUCION, COBRAR_MULTA,
-                    ABRIR_CAJA, CERRAR_CAJA, ABRIR_TURNO, CERRAR_TURNO,
+                    COBRAR_PRESTAMO, ANULAR_PRESTAMO,
+                    ABRIR_CAJA, CERRAR_CAJA, ASIGNAR_ENCARGADO, ARQUEAR_CAJA,
+                    ABRIR_TURNO, CERRAR_TURNO, NOTA_CLIENTE,
                     ACEPTAR_COMPROBANTE, DENEGAR_COMPROBANTE, COBRAR_PEDIDO_VIRTUAL,
                     REGISTRAR_USUARIO, EDITAR_USUARIO, APLICAR_SANCION,
                     LEVANTAR_SANCION, CREAR_AVISO, CAMBIAR_CONFIGURACION
@@ -389,6 +401,9 @@ MATRIZ DE PERMISOS (definida en SecurityConfig.java, se evalua en orden)
     GET  /api/auditoria/**         (quien hizo que)
     POST /api/notificaciones/generar
     POST /api/almacenamiento/preparar   (crea en R2 los buckets que falten)
+    POST /api/cajas, POST /api/cajas/{id}/cerrar, PUT /api/cajas/{id}/encargado
+                                        (abrir, cerrar y cambiar el encargado)
+    /api/crm/**                         (Ficha 360 del cliente y notas internas)
 
   SOLO LECTOR
     POST /api/reservas
@@ -518,11 +533,26 @@ CORS
            Vale igual en los dos tipos: fijo y personalizado. Cambiar el
            precio del libro o de la copia despues no altera los prestamos ya
            hechos.
-      7. El ejemplar pasa a PRESTADO y el prestamo a ACTIVO.
+      7. Necesita una CAJA ABIERTA (si no -> 400) y guarda esa caja como la
+         caja de inicio del prestamo.
+      8. El cliente PAGA EL PRECIO AL PRESTAR:
+           - si presta el ENCARGADO de la caja o el gerente, se cobra en el acto
+             (metodo_pago) y el prestamo queda ACTIVO;
+           - si presta otro bibliotecario, el prestamo queda POR_COBRAR: el
+             ejemplar se aparta (PRESTADO) pero el libro no sale. El encargado
+             lo cobra en Caja -> "Prestamos por cobrar" (las fechas se cuentan
+             desde ese momento) o se ANULA si el cliente no paga (la copia
+             vuelve a quedar libre o pasa al primero de la cola).
+         El ejemplar pasa a PRESTADO.
 
 8.5 DEVOLUCIONES Y MULTAS
     Se busca el prestamo, se indica en que estado quedo el ejemplar
     (DISPONIBLE, DANADO, PERDIDO o BAJA) y opcionalmente observaciones.
+    Cualquier bibliotecario puede registrar la devolucion, pero hace falta una
+    caja abierta: el prestamo guarda la caja donde termino (puede ser otra que
+    la caja donde empezo). Los prestamos nuevos ya pagaron al prestar; solo los
+    ANTIGUOS (de antes de este cambio) cobran el precio al devolver, y ese cobro
+    lo hace el encargado. Un prestamo POR_COBRAR no se puede devolver.
 
       - Dias de retraso = dias completos despues de la fecha de vencimiento.
         Si se devuelve a tiempo, cero.
@@ -581,7 +611,9 @@ CORS
     Nota: pagar la multa NO levanta la sancion automaticamente.
 
 8.8 PAGOS DE MULTA
-    El personal registra el pago: monto, metodo y fecha.
+    El ENCARGADO de la caja abierta (o el gerente) registra el pago: monto,
+    metodo y fecha. El pago queda en esa caja: la multa muestra en que caja
+    empezo el prestamo, en cual se devolvio y en cual se pago.
       - El monto debe ser mayor que 0.
       - No puede superar el saldo pendiente.
       - Si el saldo queda en 0, la multa pasa a PAGADA.
@@ -725,11 +757,30 @@ CORS
 
 8.15 LA CAJA (el cajon de dinero)
     Es UNA SOLA caja para toda la biblioteca: solo puede haber una abierta a la
-    vez y el personal se turna. No lleva turno_id: la caja es la sesion de
-    dinero y el turno es la bitacora del personal; conviven, no se mezclan.
+    vez. Cada apertura es una caja numerada (C001, C002, C003...). No lleva
+    turno_id: la caja es la sesion de dinero y el turno es la bitacora del
+    personal; conviven, no se mezclan.
+
+    QUIEN HACE QUE:
+      - Solo el ADMINISTRADOR (gerente) abre y cierra la caja.
+      - Al abrirla elige un ENCARGADO (un empleado). Solo el encargado (o el
+        administrador) cobra: prestamos, multas y libros virtuales. Los demas
+        bibliotecarios prestan y devuelven, pero lo que prestan queda
+        "POR COBRAR" hasta que el encargado lo cobra.
+      - El administrador puede CAMBIAR EL ENCARGADO sin cerrar la caja (cambio
+        de turno). Queda el historial: quien, desde que hora y hasta cual.
+      - Al final el ENCARGADO CUENTA EL EFECTIVO (arqueo) y el administrador
+        cierra la caja con ese monto (o escribe otro si lo vuelve a contar).
+
+    CAJAS RELACIONADAS:
+      Ejemplo: el cliente se lleva un libro en la caja C001 y paga ahi el
+      precio. El dia 3, en la caja C003, lo devuelve con 2 dias de retraso y
+      paga la multa. El prestamo queda "C001 -> C003" y la multa "pagada en
+      C003". El detalle de cada caja muestra los prestamos que empezaron y los
+      que terminaron en ella.
 
       - Al abrirla se registra el MONTO INICIAL (el dinero que ya estaba en el
-        cajon). Si ya hay una caja abierta, la API responde 400.
+        cajon) y el encargado. Si ya hay una caja abierta, la API responde 400.
       - El dinero SOLO entra por los movimientos. CajaService.registrar() es el
         unico punto por donde pasa: si no hay caja abierta, el cobro se rechaza
         con un mensaje claro ("No hay ninguna caja abierta..."). Por eso el
@@ -740,10 +791,9 @@ CORS
         cuenta en el arqueo.
       - Que pasa por la caja:
           COBRO_PRESTAMO_FECHA_FIJA / COBRO_PRESTAMO_ABIERTO
-              Al devolver un prestamo se cobra el PRECIO DE LA COPIA (el que
-              se copio al prestamos). Los dos tipos de prestamo se cobran igual.
-              Si la copia no tiene precio, no hay cobro: la devolucion se
-              registra igual, sin caja y sin movimiento.
+              El PRECIO DE LA COPIA (el que se copio al prestamo). Prestamos
+              nuevos: se cobra AL PRESTAR. Prestamos antiguos: al devolver.
+              Si la copia no tiene precio, no hay cobro.
           COBRO_MULTA
               El efectivo REALMENTE recibido (con el 15% de descuento de
               efectivo). El monto condonado queda en el descuento del
@@ -753,11 +803,29 @@ CORS
               aprobar un comprobante de Yape (este ultimo entra como YAPE).
       - La columna caja_abierta es UNIQUE (1 mientras esta abierta, NULL al
         cerrarla): la propia base impide que haya dos cajas abiertas.
-      - La pantalla Caja tiene tres pestanas: HOY (monto inicial, cobrado,
-        total del dia, desglose por metodo y por tipo, y los movimientos),
+      - La pantalla Caja tiene tres pestanas: HOY (encargado, prestamos por
+        cobrar con "Cobrar" y "Anular", monto inicial, cobrado, total del dia,
+        desglose por metodo y por tipo, arqueo, historial de encargados y los
+        movimientos),
         PENDIENTES (prestamos sin devolver con su precio a cobrar, reservas
         por recoger con su fecha limite, reservas en cola y pedidos virtuales
-        sin cobrar) e HISTORIAL (las cajas cerradas con su arqueo).
+        sin cobrar) e HISTORIAL (las cajas con su encargado y su arqueo; el
+        detalle muestra los prestamos que empezaron y terminaron en cada una).
+
+8.15.b CLIENTES (FICHA 360, el CRM del administrador)
+    Solo el GERENTE. Pantalla /clientes (tambien desde Usuarios, boton de la
+    fila del lector). Todo de un lector en una pantalla:
+      - datos y resumen: total pagado (prestamos, multas, libros virtuales),
+        deuda, prestamos activos y con retraso, % de devoluciones a tiempo,
+        sancion activa y ultima actividad;
+      - sus prestamos con la caja donde empezaron y donde terminaron;
+      - sus pagos (cada movimiento de caja, con la caja y quien cobro);
+      - sus multas con la caja donde se pagaron;
+      - sus sanciones;
+      - NOTAS INTERNAS del personal ("llamo, paga el viernes"), con autor y
+        fecha. El lector nunca las ve.
+    Solo se guardan las notas (tabla notas_cliente); todo lo demas se lee de
+    las tablas que ya existen.
 
 8.16 AUDITORIA (que hizo cada uno)
     Cada accion del personal queda anotada con su autor, su fecha y una frase
@@ -902,7 +970,7 @@ Todos los demas endpoints de listado devuelven el arreglo completo, sin paginar.
     /usuarios, /devoluciones, /ejemplares,
     /pagos-multa, /libros-virtuales, /sanciones,
     /caja, /bitacora, /reportes                bibliotecario o gerente
-    /configuracion, /auditoria                 solo gerente
+    /configuracion, /auditoria, /clientes      solo gerente
     /                                          redirige a /inicio
     cualquier otra ruta                        redirige a /inicio
 
@@ -921,8 +989,8 @@ Todos los demas endpoints de listado devuelven el arreglo completo, sin paginar.
     BIBLIOTECARIO / GERENTE, bloque Administracion (8): Ejemplares, Reservas de
                           libro virtual, Pagos de multas, Caja, Sanciones y
                           bloqueos, Avisos, Bitacora de turnos, Reportes y cierre.
-    Solo GERENTE: Auditoria y Configuracion, dentro del bloque de
-                   Administracion.
+    Solo GERENTE: Clientes (Ficha 360), Auditoria y Configuracion, dentro del
+                   bloque de Administracion.
 
 12.6 HOOKS DE DATOS (src/hooks.js)
     useApi(funcion, deps, valorInicial) -> { datos, setDatos, cargando, recargar }
@@ -1022,15 +1090,19 @@ Todos los demas endpoints de listado devuelven el arreglo completo, sin paginar.
       precio propio, se copia el del libro.
   27. El estado de un PEDIDO de libro virtual SI se guarda: es el ciclo de vida
       del pago. Lo que se deriva es si el alquiler ya vencio.
-  28. La caja es UNA SOLA para toda la biblioteca: solo puede haber una abierta,
-      se registra el MONTO INICIAL y al cerrarla se hace el arqueo (el efectivo
-      contado contra el esperado).
-  29. Al devolver un prestamo (fijo, personalizado o abierto antiguo) se cobra el PRECIO DE
-      LA COPIA. La multa se cobra aparte, con su 15% de descuento en efectivo.
-      Si el libro vuelve danado o perdido, el cargo por dano/perdida tambien
-      va a la multa (nunca al cobro inmediato).
-  30. No se cobra sin caja abierta: el backend rechaza el cobro. La devolucion
-      de una copia sin precio si se registra (no hay nada que cobrar).
+  28. La caja es UNA SOLA para toda la biblioteca: solo puede haber una abierta.
+      Solo el ADMINISTRADOR la abre (con el MONTO INICIAL y el ENCARGADO), cambia
+      el encargado y la cierra. El encargado hace el arqueo (efectivo contado
+      contra el esperado) y el administrador cierra con ese monto.
+  29. Solo el ENCARGADO de la caja (o el administrador) cobra. El PRECIO DE LA
+      COPIA se paga AL PRESTAR; si presta otro bibliotecario, el prestamo queda
+      POR_COBRAR hasta que el encargado lo cobra (o se anula). Los prestamos
+      antiguos pagan al devolver. La multa se cobra aparte, con su 15% de
+      descuento en efectivo. Si el libro vuelve danado o perdido, el cargo por
+      dano/perdida tambien va a la multa (nunca al cobro inmediato).
+  30. No se presta, devuelve ni cobra sin caja abierta. Cada prestamo guarda la
+      caja donde empezo y la caja donde termino; cada pago de multa queda en la
+      caja donde se pago.
   31. El pago con Yape es QR estatico + COMPROBANTE: el personal aprueba o
       deniega la captura. El pedido NO cambia de estado al subirlo ("en
       revision" es un estado derivado).

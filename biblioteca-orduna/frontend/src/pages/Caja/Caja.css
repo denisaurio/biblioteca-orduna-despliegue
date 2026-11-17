@@ -1,6 +1,6 @@
 /* La caja: el cajon de dinero de la biblioteca. */
 .caja-stats {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 18px;
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px;
 }
 .caja-desglose {
   display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
@@ -17,6 +17,16 @@
   padding: 9px 12px; border-radius: 7px; font-size: 12.5px;
   background: var(--blue-bg); color: var(--blue-text);
 }
+
+/* Encargado de la caja abierta: verde si soy yo (puedo cobrar). */
+.caja-encargado {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;
+  padding: 14px 18px; margin-bottom: 16px; border-radius: var(--radius);
+  border: 1px solid var(--border); background: var(--amber-bg);
+}
+.caja-encargado.mio { background: var(--green-bg); }
+.caja-encargado-titulo { font-size: 14.5px; margin-bottom: 3px; }
+.caja-actual { font-weight: 700; color: var(--green-text); }
 
 @media (max-width: 900px) {
   .caja-stats, .caja-desglose { grid-template-columns: 1fr; }

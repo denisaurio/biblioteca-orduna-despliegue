@@ -16,6 +16,8 @@ import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 /** RF07 / RF08 / RF15 - Devoluciones, cálculo de multa y pagos de multa. */
 @Service
@@ -60,7 +62,11 @@ public class DevolucionService {
      * - ABIERTO (solo préstamos antiguos): nunca genera multa.
      * - Si el libro vuelve bien, el ejemplar pasa al primero de la cola de reservas (FIFO) o queda DISPONIBLE.
      *   Si vuelve DANADO/PERDIDO, se marca así y no se asigna a nadie.
-     * - Al devolver se COBRA el precio de la copia (los dos tipos de préstamo). La multa va aparte.
+     * - Hace falta una caja abierta: el préstamo guarda la caja donde terminó (puede ser otra
+     *   que la caja donde empezó). Cualquier bibliotecario puede registrar la devolución.
+     * - Los préstamos nuevos ya pagaron su precio al prestar. Solo los préstamos ANTIGUOS
+     *   (cobro_al_prestar = false) cobran el precio al devolver, y ese cobro lo hace el
+     *   encargado de la caja o el gerente. La multa va aparte, en "Pagos de multas".
      */
     @Transactional
     public DevolucionResponseDTO registrarDevolucion(NuevaDevolucionDTO datos, Long idPersonal) {
@@ -70,14 +76,25 @@ public class DevolucionService {
         if (prestamo.getEstado() == EstadoPrestamo.DEVUELTO || devolucionRepository.existsByPrestamoId(prestamo.getId())) {
             throw new OperacionInvalidaException("El préstamo " + prestamo.getId() + " ya fue devuelto");
         }
+        if (prestamo.getEstado() == EstadoPrestamo.POR_COBRAR) {
+            throw new OperacionInvalidaException("El préstamo " + prestamo.getId()
+                    + " todavía no se cobró: el libro no salió. Cóbralo o anúlalo en la sección Caja");
+        }
+        if (prestamo.getEstado() == EstadoPrestamo.ANULADO) {
+            throw new OperacionInvalidaException("El préstamo " + prestamo.getId() + " está anulado");
+        }
         EstadoEjemplar estadoFinal = datos.estadoEjemplar() != null ? datos.estadoEjemplar() : EstadoEjemplar.DISPONIBLE;
         if (!ESTADOS_AL_DEVOLVER.contains(estadoFinal)) {
             throw new OperacionInvalidaException("estado_ejemplar debe ser DISPONIBLE, DANADO, PERDIDO o BAJA");
         }
-        // Si la copia tiene precio, el cobro necesita una caja abierta: si no hay, no se devuelve.
-        if (prestamo.getPrecioCopia() != null) {
-            cajaService.exigirCajaAbierta();
+        // La devolución queda en la caja abierta. Un préstamo antiguo además cobra su precio
+        // ahora: eso solo lo puede hacer el encargado (se comprueba antes de tocar nada).
+        Caja cajaFin = cajaService.cajaAbiertaParaOperar();
+        boolean cobraAlDevolver = !prestamo.isCobroAlPrestar() && prestamo.getPrecioCopia() != null;
+        if (cobraAlDevolver) {
+            cajaService.exigirPuedeCobrar(idPersonal);
         }
+        prestamo.setCajaFin(cajaFin);
 
         LocalDateTime ahora = LocalDateTime.now();
         int diasRetraso = prestamo.getTipo() == TipoPrestamo.ABIERTO ? 0
@@ -146,14 +163,19 @@ public class DevolucionService {
             ejemplar.setEstado(estadoFinal);
         }
 
-        // El precio de la copia se cobra al devolver (los dos tipos de préstamo).
-        // La multa se cobra aparte, cuando el lector la pague.
-        MetodoPago metodoCobro = datos.metodoPago() != null ? datos.metodoPago() : MetodoPago.EFECTIVO;
-        CajaMovimientoDTO movimiento = cajaService.registrarCobroPrestamo(prestamo, d, metodoCobro, personal.getId());
+        // Préstamo antiguo: el precio de la copia se cobra ahora, al devolver.
+        // Préstamo nuevo: ya se pagó al prestar. La multa se cobra aparte, cuando el lector la pague.
+        CajaMovimientoDTO movimiento = null;
+        if (cobraAlDevolver) {
+            MetodoPago metodoCobro = datos.metodoPago() != null ? datos.metodoPago() : MetodoPago.EFECTIVO;
+            movimiento = cajaService.registrarCobroPrestamo(prestamo, d, metodoCobro, personal.getId());
+        }
 
         auditoriaService.registrar(idPersonal, TipoAccionAuditoria.REGISTRAR_DEVOLUCION, "DEVOLUCION", d.getId(),
                 "Registró la devolución de '" + ejemplar.getLibro().getTitulo() + "' ("
                         + ejemplar.getCodigoInventario() + ") de " + prestamo.getLector().getNombreCompleto()
+                        + " en la caja #" + cajaFin.getId()
+                        + (prestamo.getCajaInicio() == null ? "" : " (empezó en la caja #" + prestamo.getCajaInicio().getId() + ")")
                         + (multa == null ? "" : " · multa de S/ " + multa.getMonto()
                                 + (multa.getConcepto() == null ? "" : " (" + multa.getConcepto() + ")"))
                         + (movimiento == null ? "" : " · cobró S/ " + movimiento.monto()));
@@ -217,8 +239,9 @@ public class DevolucionService {
             throw new OperacionInvalidaException("El monto pagado (S/ " + datos.montoPagado()
                     + ") supera el saldo de la multa (S/ " + saldo + ")");
         }
-        // El dinero entra a la caja: tiene que haber una caja abierta.
-        cajaService.exigirCajaAbierta();
+        // El dinero entra a la caja: tiene que haber una caja abierta y cobra su encargado
+        // (o el gerente). El pago queda en esa caja: "la multa se pagó en la caja #3".
+        cajaService.exigirPuedeCobrar(idBibliotecario);
 
         // Efectivo: 15% de descuento sobre el monto que se salda.
         boolean hayDescuento = datos.metodoPago() == MetodoPago.EFECTIVO;
@@ -345,11 +368,18 @@ public class DevolucionService {
         List<PagoMulta> pagos = pagoMultaRepository.findByMultaIdOrderByFechaPagoAsc(m.getId());
         PagoMulta ultimo = pagos.isEmpty() ? null : pagos.get(pagos.size() - 1);
         Prestamo p = m.getDevolucion().getPrestamo();
+        // En qué caja se pagó (varias si se pagó en partes en días distintos).
+        Map<Long, Long> cajaPorPago = cajaService.cajaPorPagoMulta(pagos.stream().map(PagoMulta::getId).toList());
+        List<Long> cajasPago = pagos.stream().map(pg -> cajaPorPago.get(pg.getId()))
+                .filter(Objects::nonNull).distinct().toList();
         return new MultaResponseDTO(m.getId(), m.getUsuario().getId(), m.getUsuario().getNombreCompleto(),
                 m.getUsuario().getDni(), p.getEjemplar().getLibro().getTitulo(), m.getDevolucion().getDiasRetraso(),
                 m.getConcepto(), m.getMonto(), m.getMontoPagado(), m.getSaldo(), m.getEstado().name(),
                 m.getFechaGeneracion(), ultimo == null ? null : ultimo.getMetodoPago().name(),
-                ultimo == null ? null : ultimo.getFechaPago());
+                ultimo == null ? null : ultimo.getFechaPago(),
+                p.getCajaInicio() == null ? null : p.getCajaInicio().getId(),
+                p.getCajaFin() == null ? null : p.getCajaFin().getId(),
+                cajasPago);
     }
 
     static PagoMultaResponseDTO pagoADTO(PagoMulta p) {

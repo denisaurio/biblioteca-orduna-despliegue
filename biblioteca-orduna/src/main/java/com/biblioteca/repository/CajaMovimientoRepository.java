@@ -7,12 +7,33 @@ import org.springframework.data.repository.query.Param;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 public interface CajaMovimientoRepository extends JpaRepository<CajaMovimiento, Long> {
 
     /** Movimientos de una caja, del más antiguo al más reciente. */
     List<CajaMovimiento> findByCajaIdOrderByFechaAsc(Long idCaja);
+
+    /** El cobro del precio de un préstamo (hay uno como máximo: id_prestamo es UNIQUE). */
+    Optional<CajaMovimiento> findByIdPrestamo(Long idPrestamo);
+
+    /** Los cobros de varios préstamos (para saber en qué caja se pagó cada uno). */
+    List<CajaMovimiento> findByIdPrestamoIn(Collection<Long> idsPrestamo);
+
+    /** Los cobros de varios pagos de multa (para saber en qué caja se pagó cada uno). */
+    List<CajaMovimiento> findByIdPagoMultaIn(Collection<Long> idsPagoMulta);
+
+    /** Todo lo que pagó un cliente: préstamos, multas y libros virtuales (Ficha 360). */
+    @Query("""
+            SELECT m FROM CajaMovimiento m
+            WHERE m.idPrestamo IN (SELECT p.id FROM Prestamo p WHERE p.lector.id = :idCliente)
+               OR m.idPagoMulta IN (SELECT pm.id FROM PagoMulta pm WHERE pm.multa.usuario.id = :idCliente)
+               OR m.idAccesoVirtual IN (SELECT a.id FROM AccesoVirtual a WHERE a.usuario.id = :idCliente)
+            ORDER BY m.fecha DESC
+            """)
+    List<CajaMovimiento> movimientosDeCliente(@Param("idCliente") Long idCliente);
 
     /** Movimientos de un rango de fechas (el total del día). */
     List<CajaMovimiento> findByFechaBetweenOrderByFechaAsc(LocalDateTime desde, LocalDateTime hasta);

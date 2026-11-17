@@ -34,7 +34,10 @@ import java.util.List;
  *                                      (GET /api/archivos/portadas/**, imágenes públicas)
  *   GERENTE .......................... PUT /api/configuracion, historial de configuración,
  *                                      GET /api/auditoria/** (quién hizo qué),
- *                                      POST /api/notificaciones/generar
+ *                                      POST /api/notificaciones/generar,
+ *                                      abrir/cerrar la caja y cambiar su encargado
+ *                                      (POST /api/cajas, POST /api/cajas/{id}/cerrar,
+ *                                      PUT /api/cajas/{id}/encargado) y el CRM (/api/crm/**)
  *   LECTOR ........................... POST /api/reservas, POST /api/accesos-virtuales
  *   Cualquier usuario logueado ....... /api/mi/** (mis préstamos, multas, reservas, panel),
  *                                      /api/usuarios/me, mis notificaciones, cancelar mi reserva,
@@ -43,7 +46,7 @@ import java.util.List;
  *                                      préstamos, devoluciones, multas, reservas (listado/cola),
  *                                      usuarios, sanciones, turnos, reportes, cierre diario,
  *                                      dashboard, crear avisos, libros virtuales (escritura),
- *                                      comprobantes de Yape (/api/comprobantes/**) y la caja
+ *                                      comprobantes de Yape (/api/comprobantes/**) y el resto de la caja
  *                                      (/api/cajas/**)
  */
 @Configuration
@@ -108,6 +111,12 @@ public class SecurityConfig {
                         // Va aqui (antes que el bloque de bibliotecario/gerente) porque el
                         // orden de las reglas es posicional: el primero que coincide gana.
                         .requestMatchers(HttpMethod.POST, "/api/almacenamiento/preparar").hasRole(GERENTE)
+                        // Caja: abrir, cerrar y cambiar el encargado es solo del gerente. El
+                        // encargado (un bibliotecario) cobra y hace el arqueo (bloque de abajo).
+                        .requestMatchers(HttpMethod.POST, "/api/cajas", "/api/cajas/*/cerrar").hasRole(GERENTE)
+                        .requestMatchers(HttpMethod.PUT, "/api/cajas/*/encargado").hasRole(GERENTE)
+                        // CRM: Ficha 360 del cliente y notas internas. Solo el gerente.
+                        .requestMatchers("/api/crm/**").hasRole(GERENTE)
 
                         // ======== Solo LECTOR ========
                         .requestMatchers(HttpMethod.POST, "/api/reservas").hasRole(LECTOR)
