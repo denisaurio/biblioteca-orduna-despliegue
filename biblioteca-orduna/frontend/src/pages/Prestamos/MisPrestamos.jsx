@@ -5,7 +5,7 @@ import Estado from '../../components/common/Estado.jsx';
 import StatCard from '../../components/common/StatCard.jsx';
 import { FilaEstado } from '../../components/common/Cargando.jsx';
 import { estadoMulta, estadoPrestamo } from '../../utils/estados.js';
-import { fmtFecha, fmtSoles } from '../../utils/formato.js';
+import { fmtFecha, fmtFechaHora, fmtSoles } from '../../utils/formato.js';
 
 function MisPrestamos() {
   const { datos: prestamos, cargando, recargar: recargarPrestamos } = useApi(() => getMisPrestamos(), [], []);
@@ -42,16 +42,19 @@ function MisPrestamos() {
       <h3 className="seccion-titulo">Préstamos</h3>
       <div className="card table-card" style={{ marginBottom: 24 }}>
         <table>
-          <thead><tr><th>Libro</th><th>Ejemplar</th><th>Prestado</th><th>Devolver hasta</th><th>Retraso</th><th>Estado</th></tr></thead>
+          <thead><tr><th>Libro</th><th>Ejemplar</th><th>Prestado</th><th>Devolver hasta</th><th>Multa por día</th><th>Retraso</th><th>Estado</th></tr></thead>
           <tbody>
-            {(cargando || prestamos.length === 0) && <FilaEstado columnas={6} cargando={cargando} vacio="Aún no tienes préstamos." />}
+            {(cargando || prestamos.length === 0) && <FilaEstado columnas={7} cargando={cargando} vacio="Aún no tienes préstamos." />}
             {!cargando && prestamos.map((p) => (
               <tr key={p.id}>
                 <td>{p.titulo_libro}</td>
                 <td className="mono">{p.codigo_inventario}</td>
-                <td className="mono">{fmtFecha(p.fecha_prestamo)}</td>
+                <td className="mono">{fmtFechaHora(p.fecha_prestamo)}</td>
                 <td className="mono">{p.fecha_vencimiento ? fmtFecha(p.fecha_vencimiento) : 'Abierto'}</td>
-                <td className="mono">{p.dias_retraso > 0 ? `${p.dias_retraso} día(s)` : '—'}</td>
+                <td className="mono">{p.tarifa_multa_diaria != null ? fmtSoles(p.tarifa_multa_diaria) : '—'}</td>
+                <td className="mono">
+                  {p.dias_retraso > 0 ? <>{p.dias_retraso} día(s)<div className="pick-sub">Multa: {fmtSoles(p.multa_acumulada)}</div></> : '—'}
+                </td>
                 <td><Estado valor={p.estado} mapa={estadoPrestamo} /></td>
               </tr>
             ))}
@@ -62,12 +65,13 @@ function MisPrestamos() {
       <h3 className="seccion-titulo">Multas</h3>
       <div className="card table-card">
         <table>
-          <thead><tr><th>Libro</th><th>Fecha</th><th>Días de retraso</th><th>Monto</th><th>Pagado</th><th>Saldo</th><th>Estado</th></tr></thead>
+          <thead><tr><th>Libro</th><th>Motivo</th><th>Fecha</th><th>Días de retraso</th><th>Monto</th><th>Pagado</th><th>Saldo</th><th>Estado</th></tr></thead>
           <tbody>
-            {(cargandoM || multas.length === 0) && <FilaEstado columnas={7} cargando={cargandoM} vacio="No tienes multas. ¡Bien hecho!" />}
+            {(cargandoM || multas.length === 0) && <FilaEstado columnas={8} cargando={cargandoM} vacio="No tienes multas. ¡Bien hecho!" />}
             {!cargandoM && multas.map((m) => (
               <tr key={m.id}>
                 <td>{m.titulo_libro}</td>
+                <td>{m.concepto || 'Multa'}</td>
                 <td className="mono">{fmtFecha(m.fecha_generacion)}</td>
                 <td className="mono">{m.dias_retraso}</td>
                 <td className="mono">{fmtSoles(m.monto)}</td>

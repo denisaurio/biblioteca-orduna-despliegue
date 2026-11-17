@@ -10,6 +10,11 @@ import java.time.LocalDateTime;
  * estado: ACTIVO, VENCIDO (activo y pasado de fecha) o DEVUELTO.
  * en_plazo: false cuando está vencido ("Retraso" en la pantalla Devoluciones).
  * precio_copia: precio del ejemplar cuando se prestó (copiado, no se recalcula).
+ * tipo_prestamo: FECHA_FIJA (fijo), PERSONALIZADO o ABIERTO (solo préstamos antiguos).
+ * dias_prestamo: días que se prestó el libro.
+ * tarifa_multa_diaria: multa por cada día de retraso (copiada en el préstamo).
+ * tarifa_personalizada: true si la tarifa la eligió el personal y no la configuración.
+ * multa_acumulada: si sigue activo y con retraso, cuánto va de multa hoy (días × tarifa).
  */
 public record PrestamoResponseDTO(
         Long id,
@@ -27,5 +32,9 @@ public record PrestamoResponseDTO(
         @JsonProperty("dias_retraso") int diasRetraso,
         @JsonProperty("en_plazo") boolean enPlazo,
         String estado,
-        @JsonProperty("precio_copia") BigDecimal precioCopia
+        @JsonProperty("precio_copia") BigDecimal precioCopia,
+        @JsonProperty("dias_prestamo") Integer diasPrestamo,
+        @JsonProperty("tarifa_multa_diaria") BigDecimal tarifaMultaDiaria,
+        @JsonProperty("tarifa_personalizada") boolean tarifaPersonalizada,
+        @JsonProperty("multa_acumulada") BigDecimal multaAcumulada
 ) {}

@@ -26,6 +26,7 @@ import {
   estadoComprobante,
   metodoPagoVirtual,
   nombreMetodo,
+  nombreTipoPrestamo,
   tipoAccesoVirtual,
   tipoMovimientoCaja,
 } from '../../utils/estados.js';
@@ -300,7 +301,7 @@ function TabPendientes() {
               <tr key={p.id_prestamo}>
                 <td>{p.nombre_lector}</td>
                 <td>{p.titulo}</td>
-                <td>{p.tipo === 'ABIERTO' ? 'Abierto' : 'Fecha fija'}</td>
+                <td>{nombreTipoPrestamo[p.tipo] || p.tipo}</td>
                 <td className="mono">{fmtFechaHora(p.fecha_prestamo)}</td>
                 <td className="mono">
                   {p.fecha_vencimiento ? fmtFecha(p.fecha_vencimiento) : 'Sin fecha'}

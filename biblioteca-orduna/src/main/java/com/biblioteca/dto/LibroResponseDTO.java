@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -15,6 +16,8 @@ import java.util.List;
  * se entrega con una URL firmada que caduca.
  * aviso: solo al registrar/editar, si algo opcional no se pudo hacer (por ejemplo, bajar
  * la portada de internet). El libro SI se guardo; el aviso dice que falta.
+ * proxima_devolucion: fecha más cercana en que vuelve una copia prestada (null si no hay
+ * préstamos activos). La usa "Nuevo préstamo" para mostrar en gris cuándo se libera el libro.
  */
 public record LibroResponseDTO(
         Long id,
@@ -33,12 +36,13 @@ public record LibroResponseDTO(
         @JsonProperty("precio_compra") BigDecimal precioCompra,
         @JsonProperty("url_imagen") String urlImagen,
         @JsonProperty("tiene_pdf") boolean tienePdf,
-        @JsonInclude(JsonInclude.Include.NON_NULL) String aviso
+        @JsonInclude(JsonInclude.Include.NON_NULL) String aviso,
+        @JsonProperty("proxima_devolucion") LocalDate proximaDevolucion
 ) {
     /** El mismo libro con un aviso para el bibliotecario. */
     public LibroResponseDTO conAviso(String texto) {
         return new LibroResponseDTO(id, titulo, isbn, editorial, anioPublicacion, numPaginas, autores, generos,
                 ejemplaresTotal, ejemplaresDisponibles, estado, tipoLibro, precioAlquilerDiario, precioCompra,
-                urlImagen, tienePdf, texto);
+                urlImagen, tienePdf, texto, proximaDevolucion);
     }
 }

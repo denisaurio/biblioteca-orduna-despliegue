@@ -158,7 +158,7 @@ bucket de portadas y copiarla al `.env` como `R2_URL_PUBLICO_PORTADAS`. Ver
   reserva), pero la obra queda en el catálogo. Los libros **virtuales** no admiten
   ejemplares: sus copias son el PDF.
 - Al prestar, el precio de la copia **se copia al préstamo** (`precio_copia`), en las dos
-  rutas (fecha fija y abierto): cambiar el precio después no altera los préstamos ya
+  rutas (fijo y personalizado): cambiar el precio después no altera los préstamos ya
   hechos. Sale en la confirmación del préstamo y en la tabla de devoluciones.
 
 ## Escáner de códigos (cámara y lector físico)

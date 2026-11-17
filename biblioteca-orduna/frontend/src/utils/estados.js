@@ -27,6 +27,13 @@ export const estadoPrestamo = {
   DEVUELTO: ['green', 'Devuelto'],
 };
 
+/** Tipo de préstamo: fijo (días de la configuración) o personalizado. ABIERTO solo en préstamos antiguos. */
+export const nombreTipoPrestamo = {
+  FECHA_FIJA: 'Fijo',
+  PERSONALIZADO: 'Personalizado',
+  ABIERTO: 'Abierto (antiguo)',
+};
+
 export const estadoReserva = {
   PENDIENTE: ['amber', 'En espera'],
   NOTIFICADA: ['blue', 'Por recoger'],
@@ -87,8 +94,8 @@ export const estadoCaja = {
 
 /** Cada tipo de movimiento de dinero de la caja. */
 export const tipoMovimientoCaja = {
-  COBRO_PRESTAMO_FECHA_FIJA: ['blue', 'Préstamo (fecha fija)'],
-  COBRO_PRESTAMO_ABIERTO: ['blue', 'Préstamo (abierto)'],
+  COBRO_PRESTAMO_FECHA_FIJA: ['blue', 'Préstamo (fijo o personalizado)'],
+  COBRO_PRESTAMO_ABIERTO: ['blue', 'Préstamo (abierto, antiguo)'],
   COBRO_MULTA: ['red', 'Multa'],
   VENTA_VIRTUAL: ['amber', 'Venta de libro virtual'],
   ALQUILER_VIRTUAL: ['amber', 'Alquiler de libro virtual'],

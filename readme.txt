@@ -504,13 +504,18 @@ CORS
          sea de este mismo lector. Si es de otro -> error 400 "apartado para
          otro lector". Esto es lo que protege la cola FIFO.
       6. Calcula la fecha de vencimiento y guarda la tarifa:
-           FECHA_FIJA -> vence en "dias_max" dias (7 por defecto) y COPIA la
-                         tarifa vigente en el prestamo;
-           ABIERTO   -> no tiene fecha de vencimiento ni tarifa.
+           FECHA_FIJA    (fijo) -> vence en "dias_max" dias (7 por defecto);
+           PERSONALIZADO        -> vence en los dias que elige el personal
+                                   (1 a 365, se guardan en dias_prestamo);
+           ABIERTO              -> YA NO se puede crear (400). Solo existe en
+                                   prestamos antiguos.
+         Los dos tipos COPIAN la tarifa de multa en el prestamo: la vigente de
+         la configuracion, o una PERSONALIZADA que escribe el personal al
+         prestar (tarifa_personalizada = true). Los dos generan multa.
       6.b COPIA tambien el precio del ejemplar (prestamos.precio_copia), igual
            que la tarifa: es el precio de esa copia en el momento del prestamo.
            Si la copia no tiene precio propio, se copia el precio del libro.
-           Vale igual en las dos rutas: con fecha fija y abierto. Cambiar el
+           Vale igual en los dos tipos: fijo y personalizado. Cambiar el
            precio del libro o de la copia despues no altera los prestamos ya
            hechos.
       7. El ejemplar pasa a PRESTADO y el prestamo a ACTIVO.
@@ -521,8 +526,8 @@ CORS
 
       - Dias de retraso = dias completos despues de la fecha de vencimiento.
         Si se devuelve a tiempo, cero.
-      - Si el prestamo era ABIERTO, los dias de retraso son SIEMPRE cero, aunque
-        pase el tiempo. Esa es una regla del documento del proyecto.
+      - Fijo y personalizado generan multa por retraso. Solo un prestamo
+        ABIERTO antiguo tiene siempre cero dias de retraso.
       - Si hay retraso, el monto por retraso es:
             dias de retraso x tarifa
         La tarifa se lee del PRESTAMO (la copia que se hizo al prestar), nunca
@@ -968,8 +973,11 @@ Todos los demas endpoints de listado devuelven el arreglo completo, sin paginar.
 13. LAS REGLAS DE NEGOCIO, EN UNA LISTA
 --------------------------------------------------------------------------------
 
-  1.  Un prestamo es de FECHA_FIJA o ABIERTO.
-  2.  Un prestamo ABIERTO nunca genera multa, nunca.
+  1.  Un prestamo es FIJO (FECHA_FIJA, dias de la configuracion) o
+      PERSONALIZADO (el personal elige los dias). ABIERTO ya no se crea; solo
+      queda en prestamos antiguos.
+  2.  Fijo y personalizado generan multa por retraso. La tarifa por dia es la
+      de la configuracion o una personalizada que se elige al prestar.
   3.  La multa es dias de retraso por la tarifa, y la tarifa se COPIA en el
       prestamo: cambiar la tarifa despues no altera lo ya calculado. Si el
       libro vuelve DANADO, PERDIDO o BAJA se suma un CARGO por dano/perdida
@@ -1010,14 +1018,14 @@ Todos los demas endpoints de listado devuelven el arreglo completo, sin paginar.
   25. Las imagenes y los PDF viven en Cloudflare R2, no en la base de datos: en
       la base solo queda el link (portada) o la clave del objeto (PDF).
   26. El precio del EJEMPLAR se COPIA en el prestamo (como la tarifa de multa):
-      vale igual en las dos rutas, fecha fija y abierto. Si la copia no tiene
+      vale igual en los dos tipos, fijo y personalizado. Si la copia no tiene
       precio propio, se copia el del libro.
   27. El estado de un PEDIDO de libro virtual SI se guarda: es el ciclo de vida
       del pago. Lo que se deriva es si el alquiler ya vencio.
   28. La caja es UNA SOLA para toda la biblioteca: solo puede haber una abierta,
       se registra el MONTO INICIAL y al cerrarla se hace el arqueo (el efectivo
       contado contra el esperado).
-  29. Al devolver un prestamo (de fecha fija O abierto) se cobra el PRECIO DE
+  29. Al devolver un prestamo (fijo, personalizado o abierto antiguo) se cobra el PRECIO DE
       LA COPIA. La multa se cobra aparte, con su 15% de descuento en efectivo.
       Si el libro vuelve danado o perdido, el cargo por dano/perdida tambien
       va a la multa (nunca al cobro inmediato).

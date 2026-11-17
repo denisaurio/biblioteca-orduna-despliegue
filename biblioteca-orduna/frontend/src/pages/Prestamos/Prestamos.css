@@ -39,6 +39,12 @@
 .wizard-step.done .num { background: var(--green-text); }
 .wizard-step.active .num { background: #D9A93A; color: #fff; }
 .pick-item.bloqueado { opacity: .55; cursor: not-allowed; }
+/* Libro sin copias libres: en gris, con la fecha en que vuelve (se puede elegir si el lector lo tiene apartado). */
+.pick-item.ocupado { background: rgba(0,0,0,.035); filter: grayscale(1); opacity: .75; }
+.pick-item.ocupado.selected { filter: none; opacity: 1; }
+.pick-devolucion { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+.tipo-extra { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 12.5px; color: var(--muted); }
+.tipo-extra input { width: 96px; padding: 7px 9px; border: 1px solid var(--border); border-radius: 7px; background: var(--cream); font-size: 13px; }
 .summary-row b { text-align: right; }
 .summary-row small { font-weight: 400; color: var(--muted); }
 .tipo-prestamo { display: flex; flex-direction: column; gap: 10px; }

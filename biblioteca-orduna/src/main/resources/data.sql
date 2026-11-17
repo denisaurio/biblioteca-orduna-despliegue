@@ -40,3 +40,9 @@ INSERT IGNORE INTO generos (nombre) VALUES ('Poesía');
 INSERT IGNORE INTO generos (nombre) VALUES ('Historia');
 INSERT IGNORE INTO generos (nombre) VALUES ('Ciencia');
 INSERT IGNORE INTO generos (nombre) VALUES ('Ingeniería');
+
+-- Préstamos: tipo_prestamo pasa a VARCHAR(20). Hibernate la creó como ENUM de MySQL
+-- ('FECHA_FIJA','ABIERTO') y "ddl-auto=update" no cambia columnas existentes, así que
+-- sin esto no se podría guardar el tipo nuevo PERSONALIZADO. Es idempotente: si ya es
+-- VARCHAR(20) no cambia nada y los datos se conservan.
+ALTER TABLE prestamos MODIFY COLUMN tipo_prestamo VARCHAR(20) NOT NULL;

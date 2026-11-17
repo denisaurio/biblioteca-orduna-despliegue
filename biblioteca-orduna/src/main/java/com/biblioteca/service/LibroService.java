@@ -15,6 +15,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.util.*;
 
 /** RF01 / RF02 - Catálogo de libros. */
@@ -507,6 +508,12 @@ public class LibroService {
             copias.put((Long) fila[0], new long[]{total, disponibles});
         }
 
+        // Cuándo vuelve la primera copia prestada de cada libro (una consulta para todos).
+        Map<Long, LocalDate> proximaDevolucion = new HashMap<>();
+        for (Object[] fila : prestamoRepository.proximaDevolucionPorLibros(ids, EstadoPrestamo.ACTIVO)) {
+            proximaDevolucion.put((Long) fila[0], (LocalDate) fila[1]);
+        }
+
         Set<Long> idsAutores = new HashSet<>();
         libros.forEach(l -> l.getAutores().forEach(a -> idsAutores.add(a.getId())));
         Map<Long, Long> librosPorAutor = new HashMap<>();
@@ -537,7 +544,7 @@ public class LibroService {
                     l.getPrecioAlquilerDiario(), l.getPrecioCompra(),
                     almacenamientoService.urlVisible(l.getUrlImagen()),
                     l.getClavePdf() != null && !l.getClavePdf().isBlank(),
-                    null));
+                    null, proximaDevolucion.get(l.getId())));
         }
         return resultado;
     }

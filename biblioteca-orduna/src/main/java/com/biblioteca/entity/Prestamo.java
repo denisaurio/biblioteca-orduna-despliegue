@@ -25,21 +25,33 @@ public class Prestamo {
     @JoinColumn(name = "id_bibliotecario")
     private Usuario bibliotecario;
 
+    /**
+     * FECHA_FIJA (fijo) o PERSONALIZADO. Se guarda como varchar y no como enum de MySQL para
+     * poder agregar tipos sin romper la tabla (data.sql convierte la columna antigua).
+     */
     @Enumerated(EnumType.STRING)
-    @Column(name = "tipo_prestamo", nullable = false, length = 20)
+    @Column(name = "tipo_prestamo", nullable = false, length = 20, columnDefinition = "varchar(20) not null")
     private TipoPrestamo tipo = TipoPrestamo.FECHA_FIJA;
+
+    /** Días de préstamo: los de la configuración (fijo) o los que eligió el personal (personalizado). */
+    @Column(name = "dias_prestamo")
+    private Integer diasPrestamo;
+
+    /** true si la tarifa de multa la escribió el personal; false si se copió de la configuración. */
+    @Column(name = "tarifa_personalizada")
+    private Boolean tarifaPersonalizada;
 
     @Column(name = "fecha_prestamo", nullable = false)
     private LocalDateTime fechaPrestamo;
 
-    /** null en préstamos ABIERTOS. */
+    /** Fecha límite de devolución. null solo en préstamos ABIERTOS antiguos. */
     @Column(name = "fecha_devolucion_esperada")
     private LocalDate fechaVencimiento;
 
     /**
      * Tarifa vigente al momento del préstamo. Así un cambio posterior de la tarifa
      * no afecta de forma retroactiva a este préstamo (regla del documento).
-     * null en préstamos ABIERTOS.
+     * Es la de la configuración o una personalizada. null solo en préstamos ABIERTOS antiguos.
      */
     @Column(name = "tarifa_multa_diaria", precision = 10, scale = 2)
     private BigDecimal tarifaMultaDiaria;
@@ -72,6 +84,10 @@ public class Prestamo {
     public void setBibliotecario(Usuario bibliotecario) { this.bibliotecario = bibliotecario; }
     public TipoPrestamo getTipo() { return tipo; }
     public void setTipo(TipoPrestamo tipo) { this.tipo = tipo; }
+    public Integer getDiasPrestamo() { return diasPrestamo; }
+    public void setDiasPrestamo(Integer diasPrestamo) { this.diasPrestamo = diasPrestamo; }
+    public boolean isTarifaPersonalizada() { return Boolean.TRUE.equals(tarifaPersonalizada); }
+    public void setTarifaPersonalizada(Boolean tarifaPersonalizada) { this.tarifaPersonalizada = tarifaPersonalizada; }
     public LocalDateTime getFechaPrestamo() { return fechaPrestamo; }
     public void setFechaPrestamo(LocalDateTime fechaPrestamo) { this.fechaPrestamo = fechaPrestamo; }
     public LocalDate getFechaVencimiento() { return fechaVencimiento; }

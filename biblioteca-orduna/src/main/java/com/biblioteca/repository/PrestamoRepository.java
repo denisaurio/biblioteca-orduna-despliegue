@@ -4,9 +4,11 @@ import com.biblioteca.entity.EstadoPrestamo;
 import com.biblioteca.entity.Prestamo;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 
 public interface PrestamoRepository extends JpaRepository<Prestamo, Long> {
@@ -14,7 +16,7 @@ public interface PrestamoRepository extends JpaRepository<Prestamo, Long> {
 
     long countByEstado(EstadoPrestamo estado);
 
-    /** Vencidos = activos de fecha fija con fecha anterior (los ABIERTOS tienen fecha null y no cuentan). */
+    /** Vencidos = activos (fijos o personalizados) con fecha anterior. Los ABIERTOS antiguos tienen fecha null y no cuentan. */
     long countByEstadoAndFechaVencimientoBefore(EstadoPrestamo estado, LocalDate fecha);
 
     long countByFechaPrestamoBetween(LocalDateTime desde, LocalDateTime hasta);
@@ -32,6 +34,19 @@ public interface PrestamoRepository extends JpaRepository<Prestamo, Long> {
     List<Prestamo> findByEstadoOrderByFechaVencimientoAsc(EstadoPrestamo estado);
 
     List<Prestamo> findByLectorIdOrderByFechaPrestamoDesc(Long idLector);
+
+    /**
+     * Próxima devolución de cada libro: [id_libro, fecha de vencimiento más cercana] entre sus
+     * préstamos activos. Una sola consulta para todo el catálogo (no una por libro).
+     */
+    @Query("""
+            SELECT p.ejemplar.libro.id, MIN(p.fechaVencimiento)
+            FROM Prestamo p
+            WHERE p.ejemplar.libro.id IN :ids AND p.estado = :estado AND p.fechaVencimiento IS NOT NULL
+            GROUP BY p.ejemplar.libro.id
+            """)
+    List<Object[]> proximaDevolucionPorLibros(@Param("ids") Collection<Long> ids,
+                                              @Param("estado") EstadoPrestamo estado);
 
     /** Libros más prestados de la historia: [id_libro, cantidad]. */
     @Query("SELECT p.ejemplar.libro.id, COUNT(p) FROM Prestamo p GROUP BY p.ejemplar.libro.id ORDER BY COUNT(p) DESC")

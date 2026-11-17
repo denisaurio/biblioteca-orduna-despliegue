@@ -1,0 +1,5 @@
+/* "Reserva de libro físico" en el perfil del lector. */
+.reservas-fisicas { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+.reserva-fisica { border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+.reserva-fisica.vencida { border-color: var(--red-text, #b3261e); }
+.reserva-cabecera { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 10px; }

@@ -162,7 +162,9 @@ public class CajaService {
         Usuario actor = usuarioService.buscarPersonal(idActor);
         boolean abierto = prestamo.getTipo() == TipoPrestamo.ABIERTO;
         String titulo = prestamo.getEjemplar().getLibro().getTitulo();
-        String descripcion = "Préstamo de '" + titulo + "' (" + (abierto ? "abierto" : "fecha fija") + ")";
+        // Fijo y personalizado usan el mismo tipo de movimiento (COBRO_PRESTAMO_FECHA_FIJA): los dos
+        // tienen fecha de devolución. ABIERTO solo queda para préstamos antiguos.
+        String descripcion = "Préstamo de '" + titulo + "' (" + PrestamoService.nombreTipo(prestamo.getTipo()) + ")";
         return registrar(
                 abierto ? TipoMovimientoCaja.COBRO_PRESTAMO_ABIERTO : TipoMovimientoCaja.COBRO_PRESTAMO_FECHA_FIJA,
                 precio, BigDecimal.ZERO, metodo, descripcion,

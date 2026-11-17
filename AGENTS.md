@@ -276,9 +276,18 @@ biblioteca-orduna/
 Estas reglas dan sentido al sistema. Si cambias una, cambia también
 `readme.txt`, `LEEME.md` y la documentación académica, y explica por qué.
 
-1. Un préstamo es `FECHA_FIJA` o `ABIERTO`.
-2. Un préstamo `ABIERTO` **nunca** genera multa, por mucho que pase el tiempo.
+1. Un préstamo es **fijo** (`FECHA_FIJA`: vence en los `dias_max` de la
+   configuración) o **personalizado** (`PERSONALIZADO`: el personal elige
+   cuántos días, de 1 a 365, y se guarda en `prestamos.dias_prestamo`).
+   `ABIERTO` **ya no se puede crear** (400); el valor sigue en el enum solo para
+   leer préstamos antiguos. No lo borres o esas filas dejan de cargar.
+2. Los dos tipos tienen fecha de devolución y **los dos generan multa** por
+   retraso. Solo un préstamo `ABIERTO` antiguo no genera multa.
 3. Multa = días de retraso × tarifa; la tarifa es la **copiada en el préstamo**.
+   Al prestar, el personal usa la tarifa de la configuración o escribe una
+   **personalizada** (`tarifa_multa_diaria` en el body; queda
+   `prestamos.tarifa_personalizada = true`). En los dos casos se copia en el
+   préstamo y cambiar la configuración después no la altera.
    Si el libro vuelve `DANADO`, `PERDIDO` o `BAJA` se suma un **cargo por
    daño/pérdida** que decide el bibliotecario en el formulario de devolución
    (el frontend sugiere 50% del precio de la copia si está dañado y 100% si
@@ -335,7 +344,7 @@ Estas reglas dan sentido al sistema. Si cambias una, cambia también
     precio del libro, y **se copia al préstamo** (`prestamos.precio_copia`),
     igual que la tarifa de multa: cambiar el precio después no altera los
     préstamos ya hechos. Vale igual en las dos rutas, `FECHA_FIJA` y
-    `ABIERTO`. Si la copia no tiene precio propio, se usa el del libro.
+    `PERSONALIZADO`. Si la copia no tiene precio propio, se usa el del libro.
 27. La **caja es una sola** para toda la biblioteca: solo puede haber una
     abierta a la vez y el personal se turna. La columna `cajas.caja_abierta`
     es UNIQUE (1 mientras está abierta, NULL al cerrarla): la base impide
@@ -343,7 +352,7 @@ Estas reglas dan sentido al sistema. Si cambias una, cambia también
     cerrarla se hace el **arqueo** (efectivo contado contra el esperado).
     La caja **no** lleva `turno_id`: caja (sesión de dinero) y turno
     (bitácora del personal) son dos cosas que conviven.
-28. Al devolver un préstamo —**de fecha fija o abierto**— se cobra el
+28. Al devolver un préstamo —**fijo, personalizado o abierto antiguo**— se cobra el
     **precio de la copia** (`prestamos.precio_copia`). La multa se cobra
     **aparte**, con su 15% de descuento en efectivo. Si la copia no tiene
     precio, no hay cobro: la devolución se registra igual.
@@ -525,6 +534,17 @@ puede asumir que existe:
     que contratar a un adquirente (3.5-5 % + S/0.30). Lo implementado es el
     QR estático de Yape Negocio (el monto lo teclea el cliente) y el
     comprobante que aprueba el personal.
+- **`prestamos.tipo_prestamo` es VARCHAR(20), no ENUM.** Hibernate 6 la creó como
+  ENUM de MySQL y `ddl-auto=update` no cambia columnas existentes: `data.sql`
+  termina con un `ALTER TABLE prestamos MODIFY COLUMN tipo_prestamo VARCHAR(20)`
+  (idempotente) para que entre `PERSONALIZADO`. Si agregas valores a otro enum
+  que ya exista en la base (`@Enumerated(STRING)`), haz lo mismo o el INSERT falla.
+- **"Nuevo préstamo" muestra en gris los libros sin copias libres** con la fecha en
+  que vuelve la primera copia prestada: `LibroResponseDTO.proxima_devolucion`
+  (`PrestamoRepository.proximaDevolucionPorLibros`, una consulta en bloque).
+- **Perfil del lector**: sección "Reserva de libro físico" (día y hora de inicio,
+  día de devolución, multa por día y multa acumulada) y "Detalle de multas"
+  (`pages/Prestamos/ReservasFisicas.jsx`, usa `/api/mi/prestamos` y `/api/mi/multas`).
 - **Caja (regla 27): sin caja abierta no se cobra nada.** Al probar en local,
   abre primero la caja en la sección "Caja" (monto inicial `0.00` sirve), si
   no, devolver un libro da 400 con el mensaje "No hay ninguna caja abierta".

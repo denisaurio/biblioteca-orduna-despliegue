@@ -1,6 +1,7 @@
 // Réplica del prototipo Figma "DEVOLUCIONES" (RF07, RF08): tabla de préstamos con fecha límite,
 // estado En plazo / Retraso y alerta de préstamos vencidos. La multa la calcula el backend
-// (días de retraso × tarifa vigente al prestar). Un préstamo abierto nunca genera multa.
+// (días de retraso × tarifa copiada al prestar: la de la configuración o una personalizada).
+// Los préstamos fijos y personalizados generan multa; solo los abiertos antiguos no.
 // Al devolver se cobra el precio de la copia: ese cobro entra a la caja, así que hace
 // falta que haya una caja abierta.
 import { useState } from 'react';
@@ -13,8 +14,8 @@ import Estado from '../../components/common/Estado.jsx';
 import Modal from '../../components/common/Modal.jsx';
 import Campo from '../../components/common/Campo.jsx';
 import { FilaEstado } from '../../components/common/Cargando.jsx';
-import { estadoPrestamo, nombreMetodo } from '../../utils/estados.js';
-import { codigo, fmtFecha, fmtSoles } from '../../utils/formato.js';
+import { estadoPrestamo, nombreMetodo, nombreTipoPrestamo } from '../../utils/estados.js';
+import { codigo, fmtFecha, fmtFechaHora, fmtSoles } from '../../utils/formato.js';
 
 /** Con qué se puede cobrar el precio de la copia al devolver. */
 const METODOS_DEVOLUCION = ['EFECTIVO', 'YAPE', 'TARJETA', 'TRANSFERENCIA'];
@@ -64,10 +65,10 @@ function Devoluciones() {
       <div className="card table-card" style={{ marginBottom: 16 }}>
         <table>
           <thead>
-            <tr><th>Identificación</th><th>Usuario</th><th>Libro</th><th>Ejemplar</th><th>Precio</th><th>Fecha límite</th><th>Estado</th><th>Acciones</th></tr>
+            <tr><th>Identificación</th><th>Usuario</th><th>Libro</th><th>Ejemplar</th><th>Precio</th><th>Prestado</th><th>Fecha límite</th><th>Multa/día</th><th>Estado</th><th>Acciones</th></tr>
           </thead>
           <tbody>
-            {(cargando || prestamos.length === 0) && <FilaEstado columnas={8} cargando={cargando} vacio="No hay préstamos en esta vista." />}
+            {(cargando || prestamos.length === 0) && <FilaEstado columnas={10} cargando={cargando} vacio="No hay préstamos en esta vista." />}
             {!cargando && prestamos.map((p) => (
               <tr key={p.id}>
                 <td className="mono">{codigo('P', p.id)}</td>
@@ -75,10 +76,18 @@ function Devoluciones() {
                 <td>{p.titulo_libro}</td>
                 <td className="mono">{p.codigo_inventario}</td>
                 <td className="mono">{p.precio_copia != null ? fmtSoles(p.precio_copia) : '—'}</td>
+                <td className="mono">
+                  {fmtFechaHora(p.fecha_prestamo)}
+                  <div className="pick-sub">{nombreTipoPrestamo[p.tipo_prestamo] || p.tipo_prestamo}{p.dias_prestamo ? ` · ${p.dias_prestamo} día(s)` : ''}</div>
+                </td>
                 <td className="mono">{p.fecha_vencimiento ? fmtFecha(p.fecha_vencimiento) : 'Abierto'}</td>
+                <td className="mono">
+                  {p.tarifa_multa_diaria != null ? fmtSoles(p.tarifa_multa_diaria) : '—'}
+                  {p.tarifa_personalizada && <div className="pick-sub">Personalizada</div>}
+                </td>
                 <td>
                   <Estado valor={p.estado} mapa={estadoPrestamo} />
-                  {p.dias_retraso > 0 && <div className="pick-sub">{p.dias_retraso} día(s)</div>}
+                  {p.dias_retraso > 0 && <div className="pick-sub">{p.dias_retraso} día(s) · {fmtSoles(p.multa_acumulada)}</div>}
                 </td>
                 <td>{p.estado !== 'DEVUELTO' && <button className="btn-primary btn-sm" onClick={() => setRegistrar(p)}>Registrar</button>}</td>
               </tr>
@@ -170,10 +179,13 @@ function RegistrarDevolucion({ prestamo, onClose, onHecho }) {
       ) : (
         <form id="form-dev" className="form-grid" onSubmit={enviar}>
           {prestamo.dias_retraso > 0
-            ? <div className="error-form" style={{ gridColumn: 'span 2', margin: 0 }}>Este préstamo tiene {prestamo.dias_retraso} día(s) de retraso: se generará una multa automáticamente.</div>
+            ? <div className="error-form" style={{ gridColumn: 'span 2', margin: 0 }}>
+                Este préstamo tiene {prestamo.dias_retraso} día(s) de retraso: se generará una multa de{' '}
+                <b>{fmtSoles(prestamo.multa_acumulada)}</b> ({prestamo.dias_retraso} × {fmtSoles(prestamo.tarifa_multa_diaria)}).
+              </div>
             : estadoEjemplar !== 'DISPONIBLE'
               ? <div className="info-box" style={{ gridColumn: 'span 2' }}>El libro vuelve {estadoEjemplar === 'DANADO' ? 'dañado' : 'perdido'}: puedes agregar un cargo a la multa.</div>
-              : <div className="info-box" style={{ gridColumn: 'span 2' }}>{prestamo.tipo_prestamo === 'ABIERTO' ? 'Préstamo abierto: no genera multa por retraso.' : 'Dentro del plazo: no se generará multa por retraso.'}</div>}
+              : <div className="info-box" style={{ gridColumn: 'span 2' }}>{prestamo.tipo_prestamo === 'ABIERTO' ? 'Préstamo abierto (antiguo): no genera multa por retraso.' : 'Dentro del plazo: no se generará multa por retraso.'}</div>}
           {sinCaja && (
             <div className="error-form" style={{ gridColumn: 'span 2', margin: 0 }}>
               No hay ninguna caja abierta. Ábrela en la sección <b>Caja</b> para poder cobrar el préstamo.

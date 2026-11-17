@@ -246,16 +246,24 @@ Respuesta paginada: `{"contenido":[...],"pagina":0,"tamanio":10,"total_elementos
 | Método | Ruta | Quién |
 |---|---|---|
 | GET | `/api/usuarios?q=` (paso 1) · `/api/libros/buscar?q=` (paso 2) | 🧑‍💼 |
-| POST | `/api/prestamos` `{"id_libro":1,"id_usuario_lector":3,"tipo_prestamo":"FECHA_FIJA"}` | 🧑‍💼 |
+| POST | `/api/prestamos` `{"id_libro":1,"id_usuario_lector":3,"tipo_prestamo":"PERSONALIZADO","dias_prestamo":10,"tarifa_multa_diaria":5.00}` | 🧑‍💼 |
 | GET | `/api/prestamos?estado=ACTIVOS\|VENCIDOS\|DEVUELTOS\|TODOS&q=` | 🧑‍💼 |
 
 Con `id_libro` el sistema elige el ejemplar (el apartado por reserva o el primero disponible).
-`tipo_prestamo`: `FECHA_FIJA` (vence en `dias_max`) o `ABIERTO` (sin fecha, **nunca multa**).
+`tipo_prestamo`: `FECHA_FIJA` (fijo: vence en `dias_max`) o `PERSONALIZADO` (vence en
+`dias_prestamo`, obligatorio, de 1 a 365). `ABIERTO` ya no se acepta (400): solo existe en
+préstamos antiguos. **Los dos tipos generan multa.**
+`tarifa_multa_diaria` es opcional: si viene, es la multa personalizada por día de retraso;
+si no, se copia la de la configuración. En los dos casos queda **copiada en el préstamo**.
+La respuesta trae `dias_prestamo`, `tarifa_multa_diaria`, `tarifa_personalizada` y
+`multa_acumulada` (días de retraso × tarifa si sigue sin devolver).
+El catálogo (`GET /api/libros`) trae `proxima_devolucion`: la fecha más cercana en que
+vuelve una copia prestada. "Nuevo préstamo" muestra el libro en gris con esa fecha.
 
 El precio del ejemplar se **copia** al préstamo (`prestamos.precio_copia`), igual que la tarifa
 de multa: es el precio de esa copia en el momento del préstamo, así que cambiar el precio del
 libro o de la copia después no altera los préstamos ya hechos. Vale igual en las dos rutas
-(fecha fija y abierto). Si la copia no tiene precio propio, se copia el precio del libro.
+(fijo y personalizado). Si la copia no tiene precio propio, se copia el precio del libro.
 
 ### Devoluciones (RF07, RF08)
 | Método | Ruta | Quién |
@@ -365,11 +373,11 @@ proxies como Traefik/Nginx no corten la conexión.
 
 | Regla | Dónde |
 |---|---|
-| Préstamo con fecha fija o abierto; el abierto nunca genera multa | `PrestamoService`, `DevolucionService` |
+| Préstamo fijo (días de la configuración) o personalizado (días a elección); los dos generan multa; la tarifa por día es la de la configuración o una personalizada | `PrestamoService`, `DevolucionService` |
 | Multa = días de retraso × tarifa; la tarifa se guarda en el préstamo, así un cambio posterior no es retroactivo | `Prestamo.tarifaMultaDiaria`, `configuracion_multas` versionada |
 | Si el libro vuelve `DANADO`/`PERDIDO`/`BAJA`, se suma un cargo editable (50 % del precio de la copia si está dañado, 100 % si está perdido); una sola multa con retraso + cargo y el motivo en `concepto` | `DevolucionService.registrarDevolucion`, `NuevaDevolucionDTO.cargo_danado` |
 | Una devolución sin multa puede recibir una multa manual; solo crea deuda y nunca cobra en el acto | `DevolucionService.registrarMultaManual`, `POST /api/multas` |
-| El precio del ejemplar se copia al préstamo, igual en fecha fija y abierto | `Prestamo.precioCopia`, `Ejemplar.precio` |
+| El precio del ejemplar se copia al préstamo, igual en fijo y personalizado | `Prestamo.precioCopia`, `Ejemplar.precio` |
 | Solo se presta si hay ejemplar disponible; si no, se reserva | `PrestamoService`, `ReservaService` |
 | Solo se reserva un libro sin ejemplares disponibles | `ReservaService.crearReserva` |
 | Reservas FIFO: al liberarse un ejemplar se aparta para el primero y se le avisa | `ReservaService.asignarEjemplarLiberado` |

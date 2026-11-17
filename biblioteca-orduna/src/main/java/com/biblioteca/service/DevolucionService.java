@@ -55,8 +55,9 @@ public class DevolucionService {
 
     /**
      * RF07 / RF08 - Registrar devolución y calcular multa.
-     * - FECHA_FIJA con retraso: multa = días de retraso × tarifa guardada en el préstamo.
-     * - ABIERTO: nunca genera multa.
+     * - FIJO o PERSONALIZADO con retraso: multa = días de retraso × tarifa guardada en el préstamo
+     *   (la de la configuración o la personalizada que se eligió al prestar).
+     * - ABIERTO (solo préstamos antiguos): nunca genera multa.
      * - Si el libro vuelve bien, el ejemplar pasa al primero de la cola de reservas (FIFO) o queda DISPONIBLE.
      *   Si vuelve DANADO/PERDIDO, se marca así y no se asigna a nadie.
      * - Al devolver se COBRA el precio de la copia (los dos tipos de préstamo). La multa va aparte.

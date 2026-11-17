@@ -10,6 +10,9 @@ import Badge from '../../components/common/Badge.jsx';
 import { fmtFechaHora, fmtSoles } from '../../utils/formato.js';
 import './Configuracion.css';
 
+/** Tarifas de multa de un clic; cualquier otro monto se escribe en "Personalizada". */
+const TARIFAS_RAPIDAS = [1, 2, 5, 10];
+
 function Configuracion() {
   const [tab, setTab] = useState('general');
   const [form, setForm] = useState(null);
@@ -78,10 +81,24 @@ function Configuracion() {
           ) : (
             <>
               <h3>Multas y reservas</h3>
-              <div className="form-row">
-                <div><label>Tarifa diaria de multa (S/)</label><input type="number" step="0.10" min="0" value={form.tarifa_multa_diaria} onChange={set('tarifa_multa_diaria')} /></div>
-                <div><label>Días máximo de préstamo</label><input type="number" min="1" value={form.dias_max} onChange={set('dias_max')} /></div>
+              <label>Multa por cada día de retraso</label>
+              <div className="multa-presets">
+                {TARIFAS_RAPIDAS.map((t) => (
+                  <button type="button" key={t}
+                          className={Number(form.tarifa_multa_diaria) === t ? 'on' : ''}
+                          onClick={() => setForm((f) => ({ ...f, tarifa_multa_diaria: t }))}>
+                    {fmtSoles(t)} / día
+                  </button>
+                ))}
               </div>
+              <div className="form-row">
+                <div><label>Personalizada (S/ por día)</label><input type="number" step="0.10" min="0" value={form.tarifa_multa_diaria} onChange={set('tarifa_multa_diaria')} /></div>
+                <div><label>Días del préstamo fijo</label><input type="number" min="1" value={form.dias_max} onChange={set('dias_max')} /></div>
+              </div>
+              <p className="hint">
+                Ejemplo: con {fmtSoles(form.tarifa_multa_diaria)} por día, un libro devuelto con 3 días de retraso paga {fmtSoles(Number(form.tarifa_multa_diaria || 0) * 3)}.
+                Al registrar un préstamo, el bibliotecario puede usar esta tarifa o poner una personalizada.
+              </p>
               <div className="form-row">
                 <div><label>Días para retirar una reserva</label><input type="number" min="1" value={form.dias_retiro_reserva} onChange={set('dias_retiro_reserva')} /></div>
                 <div />
