@@ -508,6 +508,20 @@ puede asumir que existe:
   préstamos simultáneos del mismo ejemplar: 1 aceptado y 7 rechazados. Si
   añades una consulta que lea y luego escriba el estado de un ejemplar o de una
   multa, hazlo igual de bloqueado, o el defecto vuelve.
+  **Orden de bloqueo: primero la CAJA, después el préstamo, el ejemplar o la multa.**
+  `CajaService.cajaAbiertaParaOperar()` y `exigirPuedeCobrar()` devuelven la caja
+  bloqueada y se llaman al principio de prestar, cobrar, devolver y pagar una multa.
+  Si la caja se toma al final, dos operaciones a la vez chocan (MySQL pone un bloqueo
+  compartido en la caja al guardar un préstamo con `id_caja_inicio` y el cobro pide
+  después uno exclusivo): con 40 préstamos simultáneos fallaban 32. La devolución
+  bloquea el préstamo (`findByIdForUpdate`), así que devolver dos veces a la vez da 400.
+  **Reservas**: se bloquea al lector (`UsuarioService.bloquear`) y la transacción es
+  `READ_COMMITTED`, para que el segundo de dos clics vea la reserva del primero. No
+  uses una lectura bloqueada de `reservas`: bloquea huecos del índice y frena a otros
+  lectores que reservan el mismo libro. Si aun así MySQL corta una transacción por
+  bloqueo, `GlobalExceptionHandler` responde **409** "Otra persona estaba registrando
+  lo mismo..." en vez de 500. Prueba de carga (100 usuarios, 40 préstamos, 60 reservas
+  y cobros dobles a la vez): sin errores 500 ni datos duplicados.
 - `useAccion` ya trata un 204 sin cuerpo como éxito (antes `res.data` era `""` y
   algunas pantallas mostraban "error" aunque el guardado había funcionado).
 - **Rendimiento del catálogo**: `LibroService.aDTOs()` cuenta copias por libro y libros

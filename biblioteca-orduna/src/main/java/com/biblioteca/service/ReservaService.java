@@ -14,6 +14,7 @@ import com.biblioteca.repository.LibroRepository;
 import com.biblioteca.repository.PrestamoRepository;
 import com.biblioteca.repository.ReservaRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
@@ -66,7 +67,7 @@ public class ReservaService {
      * - ReservaActivaDuplicadaException (400) si ya está en la cola de ese libro.
      * - OperacionInvalidaException (400) si hay ejemplares disponibles o ya tiene ese libro prestado.
      */
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public ReservaResponseDTO crearReserva(NuevaReservaDTO datos, Long idUsuarioLector) {
         return reservar(datos.idLibro(), idUsuarioLector);
     }
@@ -76,7 +77,7 @@ public class ReservaService {
      * Mismas reglas que si reservara el propio lector. El actor (personal) sale del token y
      * el permiso lo pone SecurityConfig (/api/reservas/** solo bibliotecario o gerente).
      */
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public ReservaResponseDTO crearReservaEnMostrador(ReservaMostradorDTO datos, Long idActor) {
         Usuario actor = usuarioService.buscar(idActor);
         if (!UsuarioService.esPersonal(actor)) {
@@ -87,6 +88,13 @@ public class ReservaService {
 
     private ReservaResponseDTO reservar(Long idLibro, Long idUsuarioLector) {
         Usuario lector = usuarioService.buscarLector(idUsuarioLector);
+        // Bloquea al lector: dos clics a la vez en "Reservar" se atienden en fila y el segundo
+        // ve la reserva del primero (regla: una sola reserva activa por libro). Para que la
+        // vea, la transacción es READ_COMMITTED: en REPEATABLE READ (el modo por defecto de
+        // MySQL) la consulta seguiría viendo la foto anterior. No se usa una lectura bloqueada
+        // de reservas porque bloquea los "huecos" del índice y frena a otros lectores que
+        // reservan el mismo libro a la vez (con 60 a la vez, solo 23 lo lograban).
+        usuarioService.bloquear(lector.getId());
         sancionService.verificarSinSancion(lector.getId());
         Libro libro = libroRepository.findById(idLibro)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No existe el libro con id " + idLibro));
@@ -98,7 +106,8 @@ public class ReservaService {
         if (reservaRepository.existsByLibroIdAndLectorIdAndEstadoIn(libro.getId(), lector.getId(), ACTIVAS)) {
             throw new ReservaActivaDuplicadaException("Ya tiene una reserva activa para el libro '" + libro.getTitulo() + "'");
         }
-        if (prestamoRepository.existsByLectorIdAndEjemplarLibroIdAndEstado(lector.getId(), libro.getId(), EstadoPrestamo.ACTIVO)) {
+        if (prestamoRepository.existsByLectorIdAndEjemplarLibroIdAndEstado(lector.getId(), libro.getId(), EstadoPrestamo.ACTIVO)
+                || prestamoRepository.existsByLectorIdAndEjemplarLibroIdAndEstado(lector.getId(), libro.getId(), EstadoPrestamo.POR_COBRAR)) {
             throw new OperacionInvalidaException("Ya tiene prestado un ejemplar de '" + libro.getTitulo() + "'");
         }
         if (ejemplarRepository.countByLibroIdAndEstado(libro.getId(), EstadoEjemplar.DISPONIBLE) > 0) {

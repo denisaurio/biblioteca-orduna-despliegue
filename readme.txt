@@ -1168,6 +1168,13 @@ Cambiar una regla de negocio:
     prestamos simultaneos del mismo ejemplar: 1 aceptado y 7 rechazados con 400.
     Si anades una consulta que lea y luego escriba el estado de un ejemplar o de
     una multa, bloqueala igual.
+    ORDEN DE BLOQUEO: primero la CAJA abierta (CajaService.cajaAbiertaParaOperar),
+    despues el prestamo, el ejemplar o la multa. Asi 40 prestamos a la vez se
+    atienden en fila sin error. La devolucion bloquea el prestamo (devolver dos
+    veces a la vez da 400). La reserva bloquea al lector y usa READ_COMMITTED: un
+    doble clic en "Reservar" deja una sola reserva. Si MySQL corta una operacion
+    por bloqueo, la API responde 409 "Otra persona estaba registrando lo mismo..."
+    y no 500.
   - Solo dos endpoints paginan; el resto carga el catalogo entero en memoria.
   - El filtro VENCIDOS de prestamos se aplica en Java, no en SQL.
   - Hay consultas N+1: al listar usuarios se hacen dos consultas por usuario.

@@ -158,6 +158,15 @@ public class UsuarioService {
         return u;
     }
 
+    /**
+     * Bloquea al usuario hasta el final de la transacción (operaciones del mismo lector en fila).
+     * Llamarlo ANTES de comprobar reglas como "una reserva activa por libro".
+     */
+    public Usuario bloquear(Long idUsuario) {
+        return usuarioRepository.findByIdForUpdate(idUsuario)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No existe el usuario con id " + idUsuario));
+    }
+
     public Usuario buscarLector(Long idUsuario) {
         Usuario u = buscar(idUsuario);
         if (u.getRol() != Rol.LECTOR) {

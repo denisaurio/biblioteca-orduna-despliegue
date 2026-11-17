@@ -304,7 +304,7 @@ public class CajaService {
      * Falla si no hay caja abierta o si quien cobra no es el encargado ni el gerente.
      * Se usa antes de empezar un cobro, para no dejar nada a medias.
      */
-    @Transactional(readOnly = true)
+    @Transactional
     public void exigirPuedeCobrar(Long idActor) {
         Caja caja = cajaAbiertaParaOperar();
         Usuario actor = usuarioService.buscarPersonal(idActor);
@@ -314,13 +314,21 @@ public class CajaService {
     }
 
     /**
-     * La caja abierta (para guardar en qué caja empieza o termina un préstamo).
-     * Sin caja abierta no se presta ni se devuelve: así cada préstamo queda relacionado
-     * con sus cajas.
+     * La caja abierta (para guardar en qué caja empieza o termina un préstamo), BLOQUEADA
+     * hasta el final de la transacción. Sin caja abierta no se presta ni se devuelve: así
+     * cada préstamo queda relacionado con sus cajas.
+     *
+     * ORDEN DE BLOQUEO (no lo cambies): préstamo, devolución, cobro y pago de multa toman
+     * PRIMERO la caja y después el préstamo, el ejemplar o la multa. Si se toma la caja al
+     * final, dos operaciones a la vez se bloquean en cruce: al guardar un préstamo con
+     * id_caja_inicio, MySQL pone un bloqueo compartido sobre la fila de la caja (por la
+     * clave foránea) y el cobro pide después uno exclusivo. Con 40 préstamos simultáneos
+     * fallaban 32 ("Deadlock found"). Tomándola primero, las operaciones esperan en fila.
      */
-    @Transactional(readOnly = true)
+    @Transactional
     public Caja cajaAbiertaParaOperar() {
-        return cajaRepository.findByCajaAbierta(MARCA_ABIERTA).orElseThrow(() -> new OperacionInvalidaException(
+        return cajaRepository.findByEstadoOrderByFechaAperturaDescForUpdate(EstadoCaja.ABIERTA).stream()
+                .findFirst().orElseThrow(() -> new OperacionInvalidaException(
                 "No hay ninguna caja abierta. El administrador debe abrirla (y elegir al encargado) para poder operar"));
     }
 

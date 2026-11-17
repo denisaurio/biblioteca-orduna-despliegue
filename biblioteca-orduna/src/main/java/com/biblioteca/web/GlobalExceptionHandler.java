@@ -6,6 +6,7 @@ import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -26,7 +27,8 @@ import java.io.IOException;
 /**
  * Convierte las excepciones en respuestas JSON (ErrorResponse) con el código HTTP correcto.
  *
- *   409 Conflict ......... RecursoDuplicadoException, DataIntegrityViolationException
+ *   409 Conflict ......... RecursoDuplicadoException, DataIntegrityViolationException,
+ *                          PessimisticLockingFailureException (dos personas a la vez)
  *   404 Not Found ........ RecursoNoEncontradoException, ruta inexistente
  *   403 Forbidden ........ UsuarioSancionadoException, AccesoDenegadoException, AccessDeniedException
  *   401 Unauthorized ..... CredencialesInvalidasException
@@ -137,6 +139,19 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> integridad(DataIntegrityViolationException ex, HttpServletRequest req) {
         log.warn("Violación de integridad en {}: {}", req.getRequestURI(), ex.getMostSpecificCause().getMessage());
         return responder(HttpStatus.CONFLICT, "El registro entra en conflicto con datos existentes", req);
+    }
+
+    /**
+     * Respaldo de concurrencia: dos personas tocaron lo mismo en el mismo instante y MySQL
+     * cortó una de las dos (bloqueo cruzado o espera agotada). No es un error del sistema:
+     * se responde 409 para que la pantalla diga que lo intente de nuevo. Los servicios
+     * bloquean en orden (caja, préstamo, ejemplar/multa) para que esto casi no ocurra.
+     */
+    @ExceptionHandler(PessimisticLockingFailureException.class)
+    public ResponseEntity<ErrorResponse> concurrencia(PessimisticLockingFailureException ex, HttpServletRequest req) {
+        log.warn("Conflicto de concurrencia en {}: {}", req.getRequestURI(), ex.getMostSpecificCause().getMessage());
+        return responder(HttpStatus.CONFLICT,
+                "Otra persona estaba registrando lo mismo en este momento. Intente de nuevo", req);
     }
 
     @ExceptionHandler(AccessDeniedException.class)

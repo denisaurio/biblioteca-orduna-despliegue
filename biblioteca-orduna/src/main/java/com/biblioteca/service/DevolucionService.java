@@ -71,7 +71,11 @@ public class DevolucionService {
     @Transactional
     public DevolucionResponseDTO registrarDevolucion(NuevaDevolucionDTO datos, Long idPersonal) {
         Usuario personal = usuarioService.buscarPersonal(idPersonal);
-        Prestamo prestamo = prestamoRepository.findById(datos.idPrestamo())
+        // Orden de bloqueo: primero la caja, después el préstamo (ver CajaService.cajaAbiertaParaOperar).
+        // Con el préstamo bloqueado, dos devoluciones del mismo libro a la vez se atienden en fila:
+        // la segunda ve que ya está DEVUELTO y responde 400 en vez de chocar en la base.
+        Caja cajaFin = cajaService.cajaAbiertaParaOperar();
+        Prestamo prestamo = prestamoRepository.findByIdForUpdate(datos.idPrestamo())
                 .orElseThrow(() -> new RecursoNoEncontradoException("No existe el préstamo con id " + datos.idPrestamo()));
         if (prestamo.getEstado() == EstadoPrestamo.DEVUELTO || devolucionRepository.existsByPrestamoId(prestamo.getId())) {
             throw new OperacionInvalidaException("El préstamo " + prestamo.getId() + " ya fue devuelto");
@@ -89,7 +93,6 @@ public class DevolucionService {
         }
         // La devolución queda en la caja abierta. Un préstamo antiguo además cobra su precio
         // ahora: eso solo lo puede hacer el encargado (se comprueba antes de tocar nada).
-        Caja cajaFin = cajaService.cajaAbiertaParaOperar();
         boolean cobraAlDevolver = !prestamo.isCobroAlPrestar() && prestamo.getPrecioCopia() != null;
         if (cobraAlDevolver) {
             cajaService.exigirPuedeCobrar(idPersonal);
@@ -226,6 +229,10 @@ public class DevolucionService {
     @Transactional
     public PagoMultaResponseDTO registrarPagoMulta(Long idMulta, PagoMultaDTO datos, Long idBibliotecario) {
         Usuario bibliotecario = usuarioService.buscarPersonal(idBibliotecario);
+        // El dinero entra a la caja: tiene que haber una caja abierta y cobra su encargado
+        // (o el gerente). El pago queda en esa caja: "la multa se pagó en la caja #3".
+        // Orden de bloqueo: primero la caja, después la multa (ver CajaService.cajaAbiertaParaOperar).
+        cajaService.exigirPuedeCobrar(idBibliotecario);
         Multa multa = multaRepository.findByIdForUpdate(idMulta)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No existe la multa con id " + idMulta));
         if (multa.getEstado() == EstadoMulta.PAGADA) {
@@ -239,10 +246,6 @@ public class DevolucionService {
             throw new OperacionInvalidaException("El monto pagado (S/ " + datos.montoPagado()
                     + ") supera el saldo de la multa (S/ " + saldo + ")");
         }
-        // El dinero entra a la caja: tiene que haber una caja abierta y cobra su encargado
-        // (o el gerente). El pago queda en esa caja: "la multa se pagó en la caja #3".
-        cajaService.exigirPuedeCobrar(idBibliotecario);
-
         // Efectivo: 15% de descuento sobre el monto que se salda.
         boolean hayDescuento = datos.metodoPago() == MetodoPago.EFECTIVO;
         BigDecimal descuento = hayDescuento
