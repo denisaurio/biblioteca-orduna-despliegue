@@ -15,6 +15,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
@@ -56,6 +57,9 @@ public class CajaService {
     private static final Integer MARCA_ABIERTA = 1;
 
     private static final DateTimeFormatter FECHA_HORA = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+
+    /** El cierre automático se decide en hora de Lima, igual que el cron. */
+    private static final ZoneId ZONA = ZoneId.of("America/Lima");
 
     private final CajaRepository cajaRepository;
     private final CajaMovimientoRepository movimientoRepository;
@@ -261,11 +265,11 @@ public class CajaService {
                 .stream().findFirst().orElse(null);
         if (caja == null) return false;
 
-        LocalDate hoy = LocalDate.now();
+        LocalDate hoy = LocalDate.now(ZONA);
         HorarioCaja horario = horarioCajaRepository.findByDiaSemana(hoy.getDayOfWeek()).orElse(null);
         if (horario == null || horario.getHoraFin() == null) return false;
 
-        LocalDateTime ahora = LocalDateTime.now();
+        LocalDateTime ahora = LocalDateTime.now(ZONA);
         LocalDateTime cierre = hoy.atTime(horario.getHoraFin());
         if (ahora.isBefore(cierre)) return false;
 

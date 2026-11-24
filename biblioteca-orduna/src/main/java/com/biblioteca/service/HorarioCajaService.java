@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -33,6 +34,9 @@ import java.util.Set;
  */
 @Service
 public class HorarioCajaService {
+
+    /** La misma zona del cron (TareasProgramadas), aunque el servidor esté en UTC. */
+    private static final ZoneId ZONA = ZoneId.of("America/Lima");
 
     private final HorarioCajaRepository horarioRepository;
     private final UsuarioRepository usuarioRepository;
@@ -82,7 +86,7 @@ public class HorarioCajaService {
      */
     @Transactional(readOnly = true)
     public HorarioCaja horarioDeHoy() {
-        return horarioRepository.findByDiaSemana(LocalDate.now().getDayOfWeek()).orElse(null);
+        return horarioRepository.findByDiaSemana(LocalDate.now(ZONA).getDayOfWeek()).orElse(null);
     }
 
     /**
