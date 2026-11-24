@@ -29,6 +29,8 @@ public enum TipoAccionAuditoria {
     CERRAR_CAJA,
     ASIGNAR_ENCARGADO,
     ARQUEAR_CAJA,
+    CERRAR_CAJA_AUTOMATICO,
+    CONFIGURAR_CAJA,
 
     // Turnos (bitácora del personal)
     ABRIR_TURNO,

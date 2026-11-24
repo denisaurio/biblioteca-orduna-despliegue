@@ -23,6 +23,7 @@ import Avisos from '../pages/Avisos/Avisos.jsx';
 import Bitacora from '../pages/Bitacora/Bitacora.jsx';
 import Reportes from '../pages/Reportes/Reportes.jsx';
 import Configuracion from '../pages/Configuracion/Configuracion.jsx';
+import ConfiguracionCaja from '../pages/ConfiguracionCaja/ConfiguracionCaja.jsx';
 import Perfil from '../pages/Perfil/Perfil.jsx';
 import LibrosVirtuales from '../pages/LibrosVirtuales/LibrosVirtuales.jsx';
 import MisLibrosVirtuales from '../pages/LibrosVirtuales/MisLibrosVirtuales.jsx';
@@ -104,6 +105,7 @@ function AppRoutes() {
 
         {/* Solo gerente */}
         <Route path="/configuracion" element={conLayout(Configuracion, { soloGerente: true })} />
+        <Route path="/configuracion-caja" element={conLayout(ConfiguracionCaja, { soloGerente: true })} />
         <Route path="/auditoria" element={conLayout(Auditoria, { soloGerente: true })} />
         <Route path="/clientes" element={conLayout(Clientes, { soloGerente: true })} />
 

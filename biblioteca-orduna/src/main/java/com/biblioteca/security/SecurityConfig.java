@@ -37,7 +37,8 @@ import java.util.List;
  *                                      POST /api/notificaciones/generar,
  *                                      abrir/cerrar la caja y cambiar su encargado
  *                                      (POST /api/cajas, POST /api/cajas/{id}/cerrar,
- *                                      PUT /api/cajas/{id}/encargado) y el CRM (/api/crm/**)
+ *                                      PUT /api/cajas/{id}/encargado), el horario de la
+ *                                      caja (/api/configuracion-caja) y el CRM (/api/crm/**)
  *   LECTOR ........................... POST /api/reservas, POST /api/accesos-virtuales
  *   Cualquier usuario logueado ....... /api/mi/** (mis préstamos, multas, reservas, panel),
  *                                      /api/usuarios/me, mis notificaciones, cancelar mi reserva,
@@ -117,6 +118,11 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PUT, "/api/cajas/*/encargado").hasRole(GERENTE)
                         // CRM: Ficha 360 del cliente y notas internas. Solo el gerente.
                         .requestMatchers("/api/crm/**").hasRole(GERENTE)
+                        // Horario de caja: el gerente lo configura; el personal solo consulta
+                        // su propio horario. Va antes del bloque general de /api/cajas/**.
+                        .requestMatchers(HttpMethod.GET, "/api/configuracion-caja/mi-horario")
+                        .hasAnyRole(BIBLIOTECARIO, GERENTE)
+                        .requestMatchers("/api/configuracion-caja", "/api/configuracion-caja/**").hasRole(GERENTE)
 
                         // ======== Solo LECTOR ========
                         .requestMatchers(HttpMethod.POST, "/api/reservas").hasRole(LECTOR)

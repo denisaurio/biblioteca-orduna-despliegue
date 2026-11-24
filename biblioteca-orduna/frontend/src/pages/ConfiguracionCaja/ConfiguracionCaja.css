@@ -1,0 +1,22 @@
+/* Tabla de horarios de la caja: los controles caben dentro de la fila. */
+.config-preview-caja {
+  padding: 16px;
+  max-width: 520px;
+}
+
+.config-preview-caja .caja-linea {
+  padding: 6px 0;
+}
+
+.table-card select,
+.table-card input[type='time'] {
+  min-width: 130px;
+}
+
+@media (max-width: 800px) {
+  .table-card select,
+  .table-card input[type='time'] {
+    min-width: 0;
+    width: 100%;
+  }
+}

@@ -1,5 +1,6 @@
 package com.biblioteca.tarea;
 
+import com.biblioteca.service.CajaService;
 import com.biblioteca.service.CierreDiarioService;
 import com.biblioteca.service.NotificacionService;
 import com.biblioteca.service.ReservaService;
@@ -17,12 +18,22 @@ public class TareasProgramadas {
     private final NotificacionService notificacionService;
     private final CierreDiarioService cierreDiarioService;
     private final ReservaService reservaService;
+    private final CajaService cajaService;
 
     public TareasProgramadas(NotificacionService notificacionService, CierreDiarioService cierreDiarioService,
-                             ReservaService reservaService) {
+                             ReservaService reservaService, CajaService cajaService) {
         this.notificacionService = notificacionService;
         this.cierreDiarioService = cierreDiarioService;
         this.reservaService = reservaService;
+        this.cajaService = cajaService;
+    }
+
+    /** Horario de caja: cada minuto se comprueba si ya pasó la hora de cierre de hoy. */
+    @Scheduled(cron = "0 * * * * *", zone = "America/Lima")
+    public void cerrarCajaPorHorario() {
+        if (cajaService.cerrarAutomaticoPorHorario()) {
+            log.info("Caja cerrada automáticamente por el horario configurado");
+        }
     }
 
     /** RF09 - Todos los días a las 00:10: vence reservas no recogidas y pasa el ejemplar al siguiente. */

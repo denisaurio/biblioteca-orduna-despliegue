@@ -289,6 +289,9 @@ Ejemplo del flujo real de "registrar un prestamo":
                         referencias al prestamo, al pago de multa, a la devolucion
                         o al pedido virtual. id_prestamo e id_pago_multa son
                         UNIQUE: no se cobra dos veces lo mismo.
+  horarios_caja         Dia_semana (UNIQUE: un horario por dia), hora_inicio,
+                        hora_fin y encargado (bibliotecario/gerente). Al pasarse
+                        la hora de fin se cierra la caja automaticamente.
   auditorias            Que hizo cada persona del personal: usuario (puede ser
                         null en acciones publicas), accion, entidad, entidad_id,
                         descripcion y fecha.
@@ -321,6 +324,7 @@ ENUMERACIONES (se guardan como texto, @Enumerated(EnumType.STRING))
                     REGISTRAR_PRESTAMO, REGISTRAR_DEVOLUCION, COBRAR_MULTA,
                     COBRAR_PRESTAMO, ANULAR_PRESTAMO,
                     ABRIR_CAJA, CERRAR_CAJA, ASIGNAR_ENCARGADO, ARQUEAR_CAJA,
+                    CERRAR_CAJA_AUTOMATICO, CONFIGURAR_CAJA,
                     ABRIR_TURNO, CERRAR_TURNO, NOTA_CLIENTE,
                     ACEPTAR_COMPROBANTE, DENEGAR_COMPROBANTE, COBRAR_PEDIDO_VIRTUAL,
                     REGISTRAR_USUARIO, EDITAR_USUARIO, APLICAR_SANCION,
@@ -404,6 +408,8 @@ MATRIZ DE PERMISOS (definida en SecurityConfig.java, se evalua en orden)
     POST /api/cajas, POST /api/cajas/{id}/cerrar, PUT /api/cajas/{id}/encargado
                                         (abrir, cerrar y cambiar el encargado)
     /api/crm/**                         (Ficha 360 del cliente y notas internas)
+    GET /api/configuracion-caja, GET /api/configuracion-caja/encargados,
+    PUT /api/configuracion-caja         (horario de la caja)
 
   SOLO LECTOR
     POST /api/reservas
@@ -415,6 +421,7 @@ MATRIZ DE PERMISOS (definida en SecurityConfig.java, se evalua en orden)
     GET  /api/notificaciones, /api/notificaciones/no-leidas/total
     PATCH /api/notificaciones/*/leida, /api/notificaciones/leidas
     PATCH /api/reservas/*/cancelar
+    GET  /api/configuracion-caja/mi-horario  (mi horario y el de hoy)
     GET  /api/accesos-virtuales/mis-libros, /api/accesos-virtuales/*/pdf,
          /api/accesos-virtuales/*/comprobantes
     POST /api/accesos-virtuales/*/comprobante, /api/accesos-virtuales/*/cancelar
@@ -803,10 +810,20 @@ CORS
               aprobar un comprobante de Yape (este ultimo entra como YAPE).
       - La columna caja_abierta es UNIQUE (1 mientras esta abierta, NULL al
         cerrarla): la propia base impide que haya dos cajas abiertas.
+      - El GERENTE configura el horario en "Configuracion de caja": una fila
+        por dia con encargado, hora de inicio y hora de fin (por ejemplo
+        Lunes a Viernes 08:00-20:00 y Sabado 08:00-15:00). GET y PUT
+        /api/configuracion-caja; GET /api/configuracion-caja/mi-horario para
+        que el personal vea su horario. Cada dia solo puede tener un horario.
+      - El backend cierra la caja SOLA al pasarse la hora de fin de hoy, siempre
+        que la caja se haya abierto hoy y antes de esa hora (tarea cada minuto
+        en hora de Lima). Si hoy no hay horario, no hay cierre automatico. El
+        arqueo automatico asume el efectivo esperado y lo dice en observaciones;
+        el cierre queda auditado como CERRAR_CAJA_AUTOMATICO.
       - La pantalla Caja tiene tres pestanas: HOY (encargado, prestamos por
         cobrar con "Cobrar" y "Anular", monto inicial, cobrado, total del dia,
-        desglose por metodo y por tipo, arqueo, historial de encargados y los
-        movimientos),
+        desglose por metodo y por tipo, arqueo, historial de encargados, los
+        movimientos y el aviso de a que hora se cierra la caja),
         PENDIENTES (prestamos sin devolver con su precio a cobrar, reservas
         por recoger con su fecha limite, reservas en cola y pedidos virtuales
         sin cobrar) e HISTORIAL (las cajas con su encargado y su arqueo; el
@@ -834,7 +851,8 @@ CORS
 
       Se auditan: alta y edicion de libros, escaneo de ISBN, subida de portada
       y de PDF, alta y edicion de ejemplares, registro de prestamos y de
-      devoluciones, cobro de multas, apertura y cierre de caja, apertura y
+      devoluciones, cobro de multas, apertura y cierre de caja (incluido el
+      cierre automatico), configuracion del horario de caja, apertura y
       cierre de turno, aceptacion y denegacion de comprobantes de Yape, cobro
       de pedidos virtuales, alta y edicion de usuarios, sanciones levantadas y
       aplicadas, creacion de avisos y cambio de configuracion.
@@ -1109,6 +1127,11 @@ Todos los demas endpoints de listado devuelven el arreglo completo, sin paginar.
   32. Las acciones del personal quedan auditadas (quien hizo que). Solo el
       gerente las ve, y la auditoria se guarda en la MISMA transaccion que la
       operacion: si la operacion se revierte, la auditoria tampoco.
+  33. El horario de la caja lo configura el GERENTE: un dia por fila con
+      encargado, hora de inicio y hora de fin. La caja se cierra SOLA al pasar
+      la hora de fin de hoy (si se abrio hoy y antes de esa hora). Sin horario
+      para hoy no hay cierre automatico. El cierre automatico asume el efectivo
+      esperado y lo deja escrito en observaciones y en la auditoria.
 
 
 --------------------------------------------------------------------------------

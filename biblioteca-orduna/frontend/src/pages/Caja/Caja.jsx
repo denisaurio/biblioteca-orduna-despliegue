@@ -25,6 +25,7 @@ import {
 import { anularPrestamo, cobrarPrestamo } from '../../api/prestamosApi.js';
 import { getUsuarios } from '../../api/usuariosApi.js';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { getMiHorarioCaja } from '../../api/configuracionCajaApi.js';
 import { useApi, useAccion, useRefrescoTiempoReal } from '../../hooks.js';
 import Modal from '../../components/common/Modal.jsx';
 import Campo from '../../components/common/Campo.jsx';
@@ -48,6 +49,7 @@ import './Caja.css';
 function Caja() {
   const [pestana, setPestana] = useState('HOY');
   const { datos: resumen, cargando, recargar } = useApi(() => getCajaActual(), [], null);
+  const { datos: miHorario } = useApi(() => getMiHorarioCaja(), [], null);
   useRefrescoTiempoReal(['cajas', 'prestamos', 'devoluciones', 'multas'], recargar);
 
   return (
@@ -67,7 +69,9 @@ function Caja() {
         </div>
       </div>
 
-      {pestana === 'HOY' && <TabHoy resumen={resumen} cargando={cargando} recargar={recargar} />}
+      {pestana === 'HOY' && (
+        <TabHoy resumen={resumen} cargando={cargando} recargar={recargar} miHorario={miHorario} />
+      )}
       {pestana === 'PENDIENTES' && <TabPendientes />}
       {pestana === 'HISTORIAL' && <TabHistorial />}
     </div>
@@ -91,13 +95,14 @@ function usePersonal(activo) {
 }
 
 /** Lo que se ve al abrir la pantalla: la caja abierta (o el cartel para abrirla) y el dia. */
-function TabHoy({ resumen, cargando, recargar }) {
+function TabHoy({ resumen, cargando, recargar, miHorario }) {
   const { esGerente } = useAuth();
   const personal = usePersonal(esGerente);
   const [modal, setModal] = useState(null); // 'CERRAR' | 'ARQUEO' | 'ENCARGADO'
   const { ejecutar, enviando } = useAccion();
   const caja = resumen?.caja_abierta;
   const puedoCobrar = resumen?.puedo_cobrar === true;
+  const horarioHoy = miHorario?.horario_hoy;
 
   const abrir = async (datos) => {
     const r = await ejecutar(() => abrirCaja(datos), 'Caja abierta');
@@ -111,6 +116,21 @@ function TabHoy({ resumen, cargando, recargar }) {
 
   if (cargando && !resumen) return <Cargando />;
 
+  // El gerente configura el horario; aquí se ve a qué hora se cierra la caja sola.
+  const avisoHorario = (
+    <div className="caja-aviso-horario">
+      {horarioHoy ? (
+        <>
+          Hoy la caja la atiende <b>{horarioHoy.nombre_encargado || '—'}</b> y se cierra sola a las{' '}
+          <b className="mono">{String(horarioHoy.hora_fin || '').slice(0, 5)}</b>.
+          {caja && esGerente && ' Puedes cerrarla antes con «Cerrar caja».'}
+        </>
+      ) : (
+        'Hoy no hay una caja programada a tu nombre: no se cierra automáticamente.'
+      )}
+    </div>
+  );
+
   if (!caja) {
     return (
       <div className="card caja-abrir">
@@ -119,6 +139,7 @@ function TabHoy({ resumen, cargando, recargar }) {
           Sin caja abierta no se presta, no se devuelve ni se cobra: asi cada prestamo queda en la caja
           donde empezo y en la caja donde termino.
         </p>
+        {avisoHorario}
         {esGerente
           ? <FormAbrir onAbrir={abrir} enviando={enviando} personal={personal} />
           : (
@@ -159,6 +180,7 @@ function TabHoy({ resumen, cargando, recargar }) {
         </div>
       </div>
 
+      {avisoHorario}
       <div className="caja-stats">
         <StatCard label="Monto inicial" value={fmtSoles(caja.monto_inicial)} icono="💰" color="blue" />
         <StatCard label="Cobrado en esta caja" value={fmtSoles(resumen.total_caja)} icono="🧾" color="green" />

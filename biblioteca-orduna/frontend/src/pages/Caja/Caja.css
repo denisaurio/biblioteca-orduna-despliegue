@@ -13,6 +13,10 @@
 }
 .caja-linea:last-child { border-bottom: none; }
 .caja-abrir { padding: 20px; }
+.caja-aviso-horario {
+  padding: 10px 14px; margin-bottom: 16px; border-radius: 7px; font-size: 13px;
+  background: var(--blue-bg); color: var(--blue-text);
+}
 .caja-diferencia {
   padding: 9px 12px; border-radius: 7px; font-size: 12.5px;
   background: var(--blue-bg); color: var(--blue-text);

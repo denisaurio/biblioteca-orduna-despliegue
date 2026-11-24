@@ -59,6 +59,7 @@ public class CajaService {
 
     private final CajaRepository cajaRepository;
     private final CajaMovimientoRepository movimientoRepository;
+    private final HorarioCajaRepository horarioCajaRepository;
     private final ComprobantePagoRepository comprobanteRepository;
     private final PrestamoRepository prestamoRepository;
     private final ReservaRepository reservaRepository;
@@ -70,13 +71,14 @@ public class CajaService {
     private final AuditoriaService auditoriaService;
 
     public CajaService(CajaRepository cajaRepository, CajaMovimientoRepository movimientoRepository,
-                       ComprobantePagoRepository comprobanteRepository, PrestamoRepository prestamoRepository,
-                       ReservaRepository reservaRepository, AccesoVirtualRepository accesoRepository,
-                       MultaRepository multaRepository, CajaEncargadoRepository encargadoRepository,
-                       DevolucionRepository devolucionRepository, UsuarioService usuarioService,
-                       AuditoriaService auditoriaService) {
+                       HorarioCajaRepository horarioCajaRepository, ComprobantePagoRepository comprobanteRepository,
+                       PrestamoRepository prestamoRepository, ReservaRepository reservaRepository,
+                       AccesoVirtualRepository accesoRepository, MultaRepository multaRepository,
+                       CajaEncargadoRepository encargadoRepository, DevolucionRepository devolucionRepository,
+                       UsuarioService usuarioService, AuditoriaService auditoriaService) {
         this.cajaRepository = cajaRepository;
         this.movimientoRepository = movimientoRepository;
+        this.horarioCajaRepository = horarioCajaRepository;
         this.comprobanteRepository = comprobanteRepository;
         this.prestamoRepository = prestamoRepository;
         this.reservaRepository = reservaRepository;
@@ -239,6 +241,58 @@ public class CajaService {
                         + (caja.getDiferencia().signum() == 0 ? " (cuadra)"
                             : caja.getDiferencia().signum() > 0 ? " (sobrante)" : " (faltante)"));
         return aDTO(caja);
+    }
+
+    /**
+     * Cierre automático por horario. Lo llama la tarea programada cada minuto.
+     * Solo cierra la caja abierta HOY cuando ya pasó la hora de fin configurada
+     * para hoy y la caja se abrió antes de esa hora. Devuelve true si la cerró.
+     *
+     * No se cierra nada si hoy no hay horario: sin configuración no hay cierre
+     * automático. Tampoco se vuelve a cerrar dos veces: una vez cerrada ya no
+     * está en estado ABIERTA. El arqueo automático asume lo esperado (no hay
+     * nadie contando el efectivo), y eso queda dicho en las observaciones.
+     */
+    @Transactional
+    public boolean cerrarAutomaticoPorHorario() {
+        // Mismo orden de bloqueo que los cobros: primero la caja, para que un
+        // cobro a la vez no se cruce con el cierre automático.
+        Caja caja = cajaRepository.findByEstadoOrderByFechaAperturaDescForUpdate(EstadoCaja.ABIERTA)
+                .stream().findFirst().orElse(null);
+        if (caja == null) return false;
+
+        LocalDate hoy = LocalDate.now();
+        HorarioCaja horario = horarioCajaRepository.findByDiaSemana(hoy.getDayOfWeek()).orElse(null);
+        if (horario == null || horario.getHoraFin() == null) return false;
+
+        LocalDateTime ahora = LocalDateTime.now();
+        LocalDateTime cierre = hoy.atTime(horario.getHoraFin());
+        if (ahora.isBefore(cierre)) return false;
+
+        LocalDateTime apertura = caja.getFechaApertura();
+        if (apertura == null || !apertura.toLocalDate().equals(hoy) || !apertura.isBefore(cierre)) return false;
+
+        BigDecimal esperado = caja.getMontoInicial().add(movimientoRepository.sumarEfectivoPorCaja(caja.getId()));
+        BigDecimal declarado = dosDecimales(esperado);
+        Usuario responsable = horario.getEncargado() != null ? horario.getEncargado()
+                : (caja.getEncargado() != null ? caja.getEncargado() : caja.getUsuarioApertura());
+        caja.setFechaCierre(ahora);
+        caja.setUsuarioCierre(responsable);
+        caja.setMontoFinalDeclarado(declarado);
+        // Arqueo automático: nadie contó el efectivo, se asume lo esperado.
+        caja.setMontoContadoEncargado(declarado);
+        caja.setFechaArqueo(ahora);
+        caja.setUsuarioArqueo(responsable);
+        caja.setDiferencia(CERO);
+        caja.setEstado(EstadoCaja.CERRADA);
+        caja.setCajaAbierta(null);   // libera el UNIQUE: ya se puede abrir otra
+        caja.setObservaciones(concatenar(caja.getObservaciones(), "Cierre automático por horario a las "
+                + horario.getHoraFin() + " (arqueo automático: se asume el efectivo esperado)"));
+        cerrarTramo(caja, ahora);
+        cajaRepository.save(caja);
+        auditoriaService.registrar(null, TipoAccionAuditoria.CERRAR_CAJA_AUTOMATICO, "CAJA", caja.getId(),
+                "Cerró la caja sola por horario (" + cierre.format(FECHA_HORA) + ")");
+        return true;
     }
 
     // ---------------- los cobros (la única entrada del dinero) ----------------

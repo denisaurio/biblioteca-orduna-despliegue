@@ -74,6 +74,7 @@ function menuPara(rol) {
     admin.push({ to: '/clientes', label: 'Clientes (Ficha 360)', icon: I.clientes });
     admin.push({ to: '/auditoria', label: 'Auditoría', icon: I.auditoria });
     admin.push({ to: '/configuracion', label: 'Configuración', icon: I.config });
+    admin.push({ to: '/configuracion-caja', label: 'Configuración de caja', icon: I.caja });
   }
   return {
     general: [

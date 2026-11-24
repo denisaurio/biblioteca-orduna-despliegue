@@ -65,6 +65,12 @@ Abre http://localhost:5173
 | BIBLIOTECARIO | biblio@biblioteca.pe | biblio123 |
 | LECTOR | lector@biblioteca.pe | lector123 |
 
+## Horario de caja
+
+El gerente configura en **Configuración de caja** un horario por día (encargado, hora de inicio y
+hora de fin; p. ej. Lunes–Viernes 08:00–20:00 y Sábado 08:00–15:00). El bibliotecario ve en la
+pantalla Caja a qué hora se le cierra la caja, y el backend la cierra sola al pasarse esa hora.
+
 ## Documentación
 
 - Backend (endpoints, reglas de negocio, errores): [`biblioteca-orduna/LEEME.md`](biblioteca-orduna/LEEME.md)

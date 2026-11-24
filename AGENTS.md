@@ -28,7 +28,7 @@ biblioteca-orduna/
 │   ├── realtime/      SSE: canal /api/eventos, eventos "cambio" y "notificacion"
 │   ├── exception/     Excepciones tipadas de negocio
 │   ├── web/           Manejador global de errores
-│   ├── tarea/         @Scheduled (3 tareas)
+│   ├── tarea/         @Scheduled (4 tareas; una cierra la caja por horario)
 │   └── config/        @EnableScheduling
 ├── src/main/resources/ application.properties + data.sql
 └── frontend/          SPA React 18 + Vite
@@ -37,7 +37,7 @@ biblioteca-orduna/
         ├── context/   AuthContext, RealtimeContext (SSE), ToastContext
         ├── routes/    AppRoutes, ProtectedRoute
         ├── components/ common/ (reutilizables, incl. EscanerCodigo y QrYape) + layout/ (armazón)
-        ├── pages/     26 pantallas en 19 carpetas (23 enrutadas)
+        ├── pages/     29 archivos .jsx en 21 carpetas (25 rutas; añadida ConfiguracionCaja)
         ├── utils/     sesion.js, formato.js, estados.js
         └── styles/    global.css
 ```
@@ -390,6 +390,13 @@ Estas reglas dan sentido al sistema. Si cambias una, cambia también
     y las notas del CRM. La auditoría se escribe en la **misma transacción** que
     la operación: si la operación se revierte, la auditoría tampoco se
     guarda. Por eso un método que audita no puede ser `readOnly = true`.
+32. El horario de la caja lo configura el **gerente**, un día por fila
+    (`horarios_caja.dia_semana` es UNIQUE), con encargado, hora de inicio y
+    hora de fin. El bibliotecario ve su horario en la pantalla Caja. La caja
+    se **cierra sola** al pasarse la hora de fin de hoy, solo si se abrió hoy
+    y antes de esa hora; si hoy no hay horario, no se cierra automáticamente.
+    El cierre automático asume el efectivo esperado (no hay arqueo humano) y
+    eso queda escrito en las observaciones y en la auditoría.
 
 ---
 
@@ -601,6 +608,12 @@ puede asumir que existe:
   pantalla `pages/Clientes/Clientes.jsx` (`/clientes`, también desde Usuarios).
   Todo se lee de las tablas que ya existen (`CrmService`); lo único nuevo que se
   guarda son las notas (`notas_cliente`).
+- **Cierre automático (regla 32): por defecto no hay ningún horario**, así que
+  la caja no se cierra sola hasta que el gerente guarde horarios en
+  "Configuración de caja". La tarea corre cada minuto en hora de Lima. Para
+  probarlo sin esperar, guarda un horario para hoy con hora de fin un par de
+  minutos posterior a la hora actual. El cierre usa el encargado del horario
+  (o el de la caja) como responsable del arqueo automático.
 - **Auditoría (regla 31): la tabla `auditorias` no se purga sola** y crece con
   cada acción del personal. Si hay que limpiarla, se borran a mano las filas
   antiguas.

@@ -55,7 +55,7 @@ Si el backend corre en otra dirección, cambia `VITE_API_URL` en el archivo `.en
 | Mis reservas | `/reservas` | lector | `GET /mi/reservas`, `POST /reservas`, `PATCH /reservas/{id}/cancelar` |
 | Ejemplares | `/ejemplares` | personal | `GET /ejemplares`, `POST /libros/{id}/ejemplares`, `PUT /ejemplares/{id}` |
 | Pagos de multas | `/pagos-multa` | personal | `GET /multas`, `POST /multas/{id}/pagar`, `GET /multas/pagos` |
-| Caja | `/caja` | personal | `GET /cajas/actual`, `POST /cajas`, `PUT /cajas/{id}/encargado`, `POST /cajas/{id}/arqueo`, `POST /cajas/{id}/cerrar`, `GET /cajas`, `GET /cajas/{id}`, `GET /cajas/pendientes`, `POST /prestamos/{id}/cobrar`, `POST /prestamos/{id}/anular` |
+| Caja | `/caja` | personal | `GET /cajas/actual`, `POST /cajas`, `PUT /cajas/{id}/encargado`, `POST /cajas/{id}/arqueo`, `POST /cajas/{id}/cerrar`, `GET /cajas`, `GET /cajas/{id}`, `GET /cajas/pendientes`, `POST /prestamos/{id}/cobrar`, `POST /prestamos/{id}/anular`, `GET /configuracion-caja/mi-horario` (aviso de cierre) |
 | Clientes (Ficha 360) | `/clientes` | gerente | `GET /usuarios`, `GET /crm/clientes/{id}`, `POST /crm/clientes/{id}/notas`, `DELETE /crm/notas/{id}` |
 | Sanciones y bloqueos | `/sanciones` | personal | `GET /sanciones`, `POST /usuarios/{id}/suspender`, `PATCH /sanciones/{id}/levantar` |
 | Avisos | `/avisos` | todos | `GET /notificaciones`, `PATCH .../leida`, `POST /notificaciones`, `GET /notificaciones/todas`, `PUT /configuracion` (interruptores) |
@@ -63,6 +63,7 @@ Si el backend corre en otra dirección, cambia `VITE_API_URL` en el archivo `.en
 | Reportes y cierre | `/reportes` | personal | `GET /reportes/*`, descarga `GET /reportes/*/csv`, `GET/POST /cierre-diario` |
 | Configuración | `/configuracion` | gerente | `GET/PUT /configuracion`, `GET /configuracion/historial`, `GET /almacenamiento/estado`, `POST /almacenamiento/probar-escritura`, `POST /almacenamiento/preparar` |
 | Auditoría | `/auditoria` | gerente | `GET /auditoria` (paginado, con filtros de fechas, persona y acción) |
+| Configuración de caja | `/configuracion-caja` | gerente | `GET/PUT /configuracion-caja`, `GET /configuracion-caja/encargados` (horarios, encargado y cierre automático) |
 | Mi perfil | `/perfil` | todos | `GET/PUT /usuarios/me` |
 
 *Personal* = bibliotecario o gerente (bloque "Administración" del menú). El lector ve un menú
