@@ -133,6 +133,7 @@ export const tipoAccionAuditoria = {
   COBRAR_PRESTAMO: ['green', 'Cobró un préstamo'],
   ANULAR_PRESTAMO: ['red', 'Anuló un préstamo'],
   ABRIR_CAJA: ['green', 'Abrió la caja'],
+  ABRIR_CAJA_AUTOMATICO: ['blue', 'Abrió la caja por horario'],
   CERRAR_CAJA: ['amber', 'Cerró la caja'],
   ASIGNAR_ENCARGADO: ['blue', 'Cambió el encargado de la caja'],
   ARQUEAR_CAJA: ['amber', 'Contó el efectivo de la caja'],

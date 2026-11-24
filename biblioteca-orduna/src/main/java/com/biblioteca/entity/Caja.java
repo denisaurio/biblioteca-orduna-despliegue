@@ -90,6 +90,14 @@ public class Caja {
     @Column(name = "fecha_arqueo")
     private LocalDateTime fechaArqueo;
 
+    /**
+     * Copia de la hora de fin del horario vigente cuando se abrió esta caja.
+     * Se congela al abrir: si el gerente cambia el horario después, esta caja
+     * sigue cerrándose a la hora con la que fue abierta.
+     */
+    @Column(name = "cierre_programado")
+    private LocalDateTime cierreProgramado;
+
     /** Quién declaró el arqueo. */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_usuario_arqueo")
@@ -110,6 +118,8 @@ public class Caja {
     public void setFechaApertura(LocalDateTime fechaApertura) { this.fechaApertura = fechaApertura; }
     public LocalDateTime getFechaCierre() { return fechaCierre; }
     public void setFechaCierre(LocalDateTime fechaCierre) { this.fechaCierre = fechaCierre; }
+    public LocalDateTime getCierreProgramado() { return cierreProgramado; }
+    public void setCierreProgramado(LocalDateTime cierreProgramado) { this.cierreProgramado = cierreProgramado; }
     public Usuario getUsuarioApertura() { return usuarioApertura; }
     public void setUsuarioApertura(Usuario usuarioApertura) { this.usuarioApertura = usuarioApertura; }
     public Usuario getUsuarioCierre() { return usuarioCierre; }

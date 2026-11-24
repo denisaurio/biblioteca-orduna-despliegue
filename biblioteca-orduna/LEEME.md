@@ -210,7 +210,7 @@ ni se cobra (400).
 `id_caja_fin` (la caja donde se devolvió); cada pago de multa queda en la caja de su
 movimiento. Las multas traen `id_caja_prestamo`, `id_caja_devolucion` y `cajas_pago`.
 
-### Horario de la caja (cierre automático)
+### Horario de la caja (apertura y cierre automáticos)
 | Método | Ruta | Quién | Para qué |
 |---|---|---|---|
 | GET | `/api/configuracion-caja` | 👑 | Horarios guardados (uno por día) |
@@ -222,10 +222,14 @@ movimiento. Las multas traen `id_caja_prestamo`, `id_caja_devolucion` y `cajas_p
 mismo día ni `hora_fin <= hora_inicio` (400). La tabla `horarios_caja` guarda un solo horario por
 día: por ejemplo Lunes–Viernes 08:00–20:00 y Sábado 08:00–15:00.
 
-El backend comprueba cada minuto (hora de Lima): si ya pasó la `hora_fin` de hoy, la caja abierta
-hoy se cierra sola. No se cierra si hoy no hay horario, ni si se abrió después de esa hora. El
-arqueo automático asume el efectivo esperado (lo dice en `observaciones`) y queda auditado como
-`CERRAR_CAJA_AUTOMATICO`.
+El backend comprueba cada minuto (hora de Lima): dentro del rango `hora_inicio`–`hora_fin` de hoy
+abre la caja sola con el encargado configurado (si no hay otra abierta y el día tiene encargado),
+con `monto_inicial = 0.00`. Al abrir guarda en `cajas.cierre_programado` una copia de la hora de fin:
+**cambiar el horario después no altera esa caja**, que se cierra a la hora con la que abrió. Si ya se
+cerró hoy, no se vuelve a abrir. Sin horario no hay apertura ni cierre automáticos. El arqueo
+automático asume el efectivo esperado (lo dice en `observaciones`) y queda auditado como
+`ABRIR_CAJA_AUTOMATICO` y `CERRAR_CAJA_AUTOMATICO`. `GET /api/cajas/actual` devuelve
+`horario_hoy`, `caja_cerrada_hoy` y `caja_abierta.cierre_programado` para la cuenta regresiva.
 
 Movimientos: `COBRO_PRESTAMO_FECHA_FIJA`, `COBRO_PRESTAMO_ABIERTO` (al devolver, por el precio de
 la copia), `COBRO_MULTA` (el efectivo recibido; el 15 % de descuento va en `descuento`),
@@ -440,7 +444,7 @@ proxies como Traefik/Nginx no corten la conexión.
 | Pagar en efectivo aplica 15 % de descuento: el monto digitado es la deuda que se salda y la biblioteca cobra el 85 % | `DevolucionService.DESCUENTO_EFECTIVO` |
 | La caja es una sola: solo una abierta, con monto inicial y arqueo al cerrar | `CajaService`, columna `cajas.caja_abierta` UNIQUE |
 | No se presta, devuelve ni cobra sin caja abierta | `CajaService.cajaAbiertaParaOperar`, `CajaService.registrar` → `OperacionInvalidaException` (400) |
-| Horario de caja por día con encargado y cierre automático al llegar la hora de fin | `HorarioCajaService`, `CajaService.cerrarAutomaticoPorHorario`, `TareasProgramadas` |
+| Horario de caja por día con encargado, apertura automática en el rango, cierre con la hora congelada al abrir y cuenta regresiva | `HorarioCajaService`, `CajaService.abrirAutomaticoPorHorario`, `CajaService.cerrarAutomaticoPorHorario`, `TareasProgramadas` |
 | El pago con Yape es QR estático + comprobante; el personal lo aprueba o lo deniega | `ComprobanteService`, `PagoYapeController` |
 | El comprobante no cambia el estado del pedido ("en revisión" es derivado) | `AccesoVirtualResponseDTO.estadoComprobante` |
 | Las acciones del personal quedan auditadas; solo el gerente las ve | `AuditoriaService`, `AuditoriaController` |

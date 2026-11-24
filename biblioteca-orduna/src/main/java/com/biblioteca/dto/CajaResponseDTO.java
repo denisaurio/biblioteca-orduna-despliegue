@@ -14,11 +14,13 @@ import java.util.List;
  * diferencia: sobrante (positivo) o faltante (negativo) al arquear.
  * encargado: el empleado que cobra ahora; encargados: historial (quién, desde, hasta).
  * monto_contado_encargado: el efectivo que contó el encargado (arqueo), antes de que el gerente cierre.
+ * cierre_programado: hora de fin con la que se abrió la caja; no cambia si luego se edita el horario.
  */
 public record CajaResponseDTO(
         Long id,
         @JsonProperty("fecha_apertura") LocalDateTime fechaApertura,
         @JsonProperty("fecha_cierre") LocalDateTime fechaCierre,
+        @JsonProperty("cierre_programado") LocalDateTime cierreProgramado,
         @JsonProperty("nombre_usuario_apertura") String nombreUsuarioApertura,
         @JsonProperty("nombre_usuario_cierre") String nombreUsuarioCierre,
         @JsonProperty("monto_inicial") BigDecimal montoInicial,

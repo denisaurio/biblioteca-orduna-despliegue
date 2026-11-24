@@ -1,7 +1,9 @@
 // Configuración del horario de la caja (solo gerente).
 // Un día = una fila: encargado (bibliotecario), hora de inicio y hora de fin.
 // Ejemplo: Lunes a Viernes 08:00-20:00 y Sábado 08:00-15:00.
-// Al llegar la hora de fin, el backend cierra la caja automáticamente.
+// Dentro del rango el backend abre la caja sola con el encargado de hoy. Al
+// llegar la hora de fin la cierra. La caja ya abierta conserva la hora con la
+// que se abrió: cambiar este horario no la altera.
 import { useEffect, useState } from 'react';
 import {
   getEncargadosCaja,
@@ -107,8 +109,11 @@ function ConfiguracionCaja() {
       </div>
 
       <div className="info-box">
-        Guarda un horario por día. Al llegar la <b>hora de fin</b>, el sistema cierra la caja sola.
-        Si un día no tiene horario, la caja de ese día no se cierra automáticamente.
+        Guarda un horario por día. Dentro del rango el sistema <b>abre la caja sola</b> con el
+        encargado de ese día y al llegar la <b>hora de fin</b> la cierra. Si un día no tiene
+        horario (o no tiene encargado), la caja de ese día no se abre ni se cierra sola.
+        Los cambios <b>no afectan la caja que ya está abierta</b>: sigue con la hora con la
+        que se abrió.
       </div>
 
       <div className="toolbar">

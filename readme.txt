@@ -323,7 +323,7 @@ ENUMERACIONES (se guardan como texto, @Enumerated(EnumType.STRING))
                     SUBIR_PDF, REGISTRAR_EJEMPLAR, EDITAR_EJEMPLAR,
                     REGISTRAR_PRESTAMO, REGISTRAR_DEVOLUCION, COBRAR_MULTA,
                     COBRAR_PRESTAMO, ANULAR_PRESTAMO,
-                    ABRIR_CAJA, CERRAR_CAJA, ASIGNAR_ENCARGADO, ARQUEAR_CAJA,
+                    ABRIR_CAJA, ABRIR_CAJA_AUTOMATICO, CERRAR_CAJA, ASIGNAR_ENCARGADO, ARQUEAR_CAJA,
                     CERRAR_CAJA_AUTOMATICO, CONFIGURAR_CAJA,
                     ABRIR_TURNO, CERRAR_TURNO, NOTA_CLIENTE,
                     ACEPTAR_COMPROBANTE, DENEGAR_COMPROBANTE, COBRAR_PEDIDO_VIRTUAL,
@@ -815,11 +815,15 @@ CORS
         Lunes a Viernes 08:00-20:00 y Sabado 08:00-15:00). GET y PUT
         /api/configuracion-caja; GET /api/configuracion-caja/mi-horario para
         que el personal vea su horario. Cada dia solo puede tener un horario.
-      - El backend cierra la caja SOLA al pasarse la hora de fin de hoy, siempre
-        que la caja se haya abierto hoy y antes de esa hora (tarea cada minuto
-        en hora de Lima). Si hoy no hay horario, no hay cierre automatico. El
-        arqueo automatico asume el efectivo esperado y lo dice en observaciones;
-        el cierre queda auditado como CERRAR_CAJA_AUTOMATICO.
+      - El backend ABRE la caja SOLA dentro del rango inicio-fin de hoy, si no
+        hay caja abierta y el dia tiene encargado (monto inicial S/ 0.00), y la
+        CIERRA SOLA al pasarse la hora de fin (tarea cada minuto en hora de Lima).
+        Al abrir se guarda en cajas.cierre_programado una COPIA de la hora de
+        fin: si el gerente cambia el horario despues, la caja ya abierta sigue
+        cerrandose a la hora con la que abrio. Si ya se cerro hoy no se reabre.
+        Sin horario no hay apertura ni cierre automaticos. El arqueo automatico
+        asume el efectivo esperado y lo dice en observaciones; queda auditado
+        como ABRIR_CAJA_AUTOMATICO y CERRAR_CAJA_AUTOMATICO.
       - La pantalla Caja tiene tres pestanas: HOY (encargado, prestamos por
         cobrar con "Cobrar" y "Anular", monto inicial, cobrado, total del dia,
         desglose por metodo y por tipo, arqueo, historial de encargados, los
@@ -1128,10 +1132,12 @@ Todos los demas endpoints de listado devuelven el arreglo completo, sin paginar.
       gerente las ve, y la auditoria se guarda en la MISMA transaccion que la
       operacion: si la operacion se revierte, la auditoria tampoco.
   33. El horario de la caja lo configura el GERENTE: un dia por fila con
-      encargado, hora de inicio y hora de fin. La caja se cierra SOLA al pasar
-      la hora de fin de hoy (si se abrio hoy y antes de esa hora). Sin horario
-      para hoy no hay cierre automatico. El cierre automatico asume el efectivo
-      esperado y lo deja escrito en observaciones y en la auditoria.
+      encargado, hora de inicio y hora de fin. Dentro del rango la caja se ABRE
+      SOLA con el encargado de hoy (si no hay otra abierta), y se CIERRA SOLA al
+      pasar la hora de fin. Al abrir se COPIA esa hora en cierre_programado:
+      cambiar el horario no altera la caja ya abierta. Sin horario (o sin
+      encargado) no hay apertura ni cierre automaticos. El arqueo automatico
+      asume el efectivo esperado y lo deja en observaciones y auditoria.
 
 
 --------------------------------------------------------------------------------

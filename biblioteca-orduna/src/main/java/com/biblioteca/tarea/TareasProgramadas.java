@@ -4,6 +4,7 @@ import com.biblioteca.service.CajaService;
 import com.biblioteca.service.CierreDiarioService;
 import com.biblioteca.service.NotificacionService;
 import com.biblioteca.service.ReservaService;
+import com.biblioteca.realtime.RealtimeService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -19,20 +20,28 @@ public class TareasProgramadas {
     private final CierreDiarioService cierreDiarioService;
     private final ReservaService reservaService;
     private final CajaService cajaService;
+    private final RealtimeService realtimeService;
 
     public TareasProgramadas(NotificacionService notificacionService, CierreDiarioService cierreDiarioService,
-                             ReservaService reservaService, CajaService cajaService) {
+                             ReservaService reservaService, CajaService cajaService,
+                             RealtimeService realtimeService) {
         this.notificacionService = notificacionService;
         this.cierreDiarioService = cierreDiarioService;
         this.reservaService = reservaService;
         this.cajaService = cajaService;
+        this.realtimeService = realtimeService;
     }
 
-    /** Horario de caja: cada minuto se comprueba si ya pasó la hora de cierre de hoy. */
+    /** Horario de caja: cada minuto abre dentro del rango y cierra al llegar la hora de fin. */
     @Scheduled(cron = "0 * * * * *", zone = "America/Lima")
-    public void cerrarCajaPorHorario() {
+    public void horarioCaja() {
+        if (cajaService.abrirAutomaticoPorHorario()) {
+            log.info("Caja abierta automáticamente por el horario configurado");
+            realtimeService.publicarCambio("cajas", "ABRIR_CAJA_AUTOMATICO");
+        }
         if (cajaService.cerrarAutomaticoPorHorario()) {
             log.info("Caja cerrada automáticamente por el horario configurado");
+            realtimeService.publicarCambio("cajas", "CERRAR_CAJA_AUTOMATICO");
         }
     }
 

@@ -392,11 +392,17 @@ Estas reglas dan sentido al sistema. Si cambias una, cambia también
     guarda. Por eso un método que audita no puede ser `readOnly = true`.
 32. El horario de la caja lo configura el **gerente**, un día por fila
     (`horarios_caja.dia_semana` es UNIQUE), con encargado, hora de inicio y
-    hora de fin. El bibliotecario ve su horario en la pantalla Caja. La caja
-    se **cierra sola** al pasarse la hora de fin de hoy, solo si se abrió hoy
-    y antes de esa hora; si hoy no hay horario, no se cierra automáticamente.
-    El cierre automático asume el efectivo esperado (no hay arqueo humano) y
-    eso queda escrito en las observaciones y en la auditoría.
+    hora de fin. El personal ve el horario de hoy y una cuenta regresiva en la
+    pantalla Caja. Dentro del rango, si no hay caja abierta y el día tiene
+    encargado, la caja se **abre sola** con S/ 0.00 de monto inicial. Al abrir
+    (manual o automáticamente) se guarda en `cajas.cierre_programado` una
+    **copia** de la hora de fin: cambiar el horario después **no altera esa
+    caja**, que sigue cerrándose a la hora con la que abrió. La cierra sola al
+    pasarse esa hora (para cajas antiguas sin copia, usa el horario de hoy);
+    si ya se cerró hoy, no se reabre. Sin horario no hay apertura ni cierre
+    automáticos. El arqueo automático asume el efectivo esperado (no hay
+    arqueo humano) y eso queda en observaciones y en la auditoría
+    (`ABRIR_CAJA_AUTOMATICO`, `CERRAR_CAJA_AUTOMATICO`).
 
 ---
 
@@ -608,12 +614,15 @@ puede asumir que existe:
   pantalla `pages/Clientes/Clientes.jsx` (`/clientes`, también desde Usuarios).
   Todo se lee de las tablas que ya existen (`CrmService`); lo único nuevo que se
   guarda son las notas (`notas_cliente`).
-- **Cierre automático (regla 32): por defecto no hay ningún horario**, así que
-  la caja no se cierra sola hasta que el gerente guarde horarios en
-  "Configuración de caja". La tarea corre cada minuto en hora de Lima. Para
-  probarlo sin esperar, guarda un horario para hoy con hora de fin un par de
-  minutos posterior a la hora actual. El cierre usa el encargado del horario
-  (o el de la caja) como responsable del arqueo automático.
+- **Horario automático (regla 32): por defecto no hay ningún horario**, así que
+  la caja no se abre ni se cierra sola hasta que el gerente guarde horarios en
+  "Configuración de caja". La tarea corre cada minuto en hora de Lima: abre
+  dentro del rango y cierra al pasarse la hora. Para probarlo sin esperar,
+  guarda un horario para hoy con inicio un par de minutos antes y fin un par
+  de minutos después de la hora actual. `cierre_programado` queda congelado al
+  abrir: si editas el horario mientras la caja está abierta, sigue cerrándose
+  a la hora original. El cierre usa el encargado de la caja (o del horario)
+  como responsable del arqueo automático.
 - **Auditoría (regla 31): la tabla `auditorias` no se purga sola** y crece con
   cada acción del personal. Si hay que limpiarla, se borran a mano las filas
   antiguas.

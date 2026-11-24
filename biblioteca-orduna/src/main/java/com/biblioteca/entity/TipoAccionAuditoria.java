@@ -26,6 +26,7 @@ public enum TipoAccionAuditoria {
 
     // Caja
     ABRIR_CAJA,
+    ABRIR_CAJA_AUTOMATICO,
     CERRAR_CAJA,
     ASIGNAR_ENCARGADO,
     ARQUEAR_CAJA,

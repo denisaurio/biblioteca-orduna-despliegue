@@ -27,6 +27,8 @@ const RECURSOS_AFECTADOS = {
   'accesos-virtuales': ['comprobantes', 'cajas', 'libros', 'usuarios'],
   comprobantes: ['accesos-virtuales', 'cajas'],
   cajas: ['accesos-virtuales', 'multas', 'prestamos', 'comprobantes'],
+  // Cambiar el horario afecta al aviso y a la cuenta regresiva de la pantalla Caja.
+  'configuracion-caja': ['cajas'],
   libros: ['ejemplares', 'reservas', 'autores'],
   ejemplares: ['libros', 'prestamos', 'reservas'],
   autores: ['libros'],

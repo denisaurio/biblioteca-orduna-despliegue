@@ -119,13 +119,19 @@ public class CajaService {
                     + abierta.getUsuarioApertura().getNombreCompleto() + "). Ciérrala antes de abrir otra");
         }
 
+        LocalDateTime ahora = LocalDateTime.now(ZONA);
+        HorarioCaja horario = horarioCajaRepository.findByDiaSemana(ahora.getDayOfWeek()).orElse(null);
         Caja caja = new Caja();
-        caja.setFechaApertura(LocalDateTime.now());
+        caja.setFechaApertura(ahora);
         caja.setUsuarioApertura(actor);
         caja.setEncargado(encargado);
         caja.setMontoInicial(dosDecimales(datos.montoInicial()));
         caja.setEstado(EstadoCaja.ABIERTA);
         caja.setCajaAbierta(MARCA_ABIERTA);
+        // Se congela el cierre del horario vigente al abrir: cambiar la configuración
+        // después no debe acortar (ni alargar) la caja que ya está abierta.
+        caja.setCierreProgramado(horario == null || horario.getHoraFin() == null
+                ? null : ahora.toLocalDate().atTime(horario.getHoraFin()));
         caja.setObservaciones(recortar(datos.observaciones()));
         try {
             // saveAndFlush: si la base ya tiene una caja abierta (índice UNIQUE),
@@ -160,7 +166,7 @@ public class CajaService {
         if (anterior != null && anterior.getId().equals(nuevo.getId())) {
             throw new OperacionInvalidaException(nuevo.getNombreCompleto() + " ya es el encargado de esta caja");
         }
-        LocalDateTime ahora = LocalDateTime.now();
+        LocalDateTime ahora = LocalDateTime.now(ZONA);
         cerrarTramo(caja, ahora);
         nuevoTramo(caja, nuevo, actor, ahora);
         caja.setEncargado(nuevo);
@@ -195,7 +201,7 @@ public class CajaService {
         BigDecimal contado = dosDecimales(datos.montoContado());
         BigDecimal esperado = caja.getMontoInicial().add(movimientoRepository.sumarEfectivoPorCaja(idCaja));
         caja.setMontoContadoEncargado(contado);
-        caja.setFechaArqueo(LocalDateTime.now());
+        caja.setFechaArqueo(LocalDateTime.now(ZONA));
         caja.setUsuarioArqueo(actor);
         caja.setObservaciones(concatenar(caja.getObservaciones(), datos.observaciones()));
         cajaRepository.save(caja);
@@ -231,7 +237,7 @@ public class CajaService {
         BigDecimal efectivo = movimientoRepository.sumarEfectivoPorCaja(idCaja);
         BigDecimal esperado = caja.getMontoInicial().add(efectivo);
 
-        caja.setFechaCierre(LocalDateTime.now());
+        caja.setFechaCierre(LocalDateTime.now(ZONA));
         caja.setUsuarioCierre(actor);
         caja.setMontoFinalDeclarado(contado);
         caja.setDiferencia(contado.subtract(esperado));
@@ -248,14 +254,71 @@ public class CajaService {
     }
 
     /**
+     * Apertura automática por horario. Lo llama la tarea programada cada minuto.
+     * Si hoy toca caja, estamos dentro del rango inicio-fin, no hay caja abierta
+     * y el horario tiene encargado, abre el cajón con S/ 0.00 de monto inicial.
+     * Guarda la hora de fin vigente para que un cambio posterior del horario no
+     * altere esta caja. No reabre una caja que ya se cerró hoy.
+     */
+    @Transactional
+    public boolean abrirAutomaticoPorHorario() {
+        LocalDate hoy = LocalDate.now(ZONA);
+        LocalDateTime ahora = LocalDateTime.now(ZONA);
+        HorarioCaja horario = horarioCajaRepository.findByDiaSemana(hoy.getDayOfWeek()).orElse(null);
+        if (horario == null || horario.getHoraInicio() == null || horario.getHoraFin() == null
+                || !horario.getHoraFin().isAfter(horario.getHoraInicio())) return false;
+
+        LocalDateTime inicio = hoy.atTime(horario.getHoraInicio());
+        LocalDateTime fin = hoy.atTime(horario.getHoraFin());
+        if (ahora.isBefore(inicio) || !ahora.isBefore(fin)) return false;
+
+        Usuario encargado = horario.getEncargado();
+        if (encargado == null || !encargado.isActivo()) return false;
+
+        if (!cajaRepository.findByEstadoOrderByFechaAperturaDescForUpdate(EstadoCaja.ABIERTA).isEmpty()) {
+            return false;
+        }
+        // Si alguien la cerró hoy (a mano o automáticamente), no se abre otra vez
+        // sola dentro del mismo día.
+        if (cajaRepository.findFirstByEstadoAndFechaCierreBetweenOrderByFechaCierreDesc(
+                EstadoCaja.CERRADA, hoy.atStartOfDay(), hoy.atTime(LocalTime.MAX)).isPresent()) {
+            return false;
+        }
+
+        Caja caja = new Caja();
+        caja.setFechaApertura(ahora);
+        caja.setUsuarioApertura(encargado);
+        caja.setEncargado(encargado);
+        caja.setMontoInicial(CERO);
+        caja.setEstado(EstadoCaja.ABIERTA);
+        caja.setCajaAbierta(MARCA_ABIERTA);
+        caja.setCierreProgramado(fin);
+        caja.setObservaciones(recortar("Apertura automática por horario ("
+                + horario.getHoraInicio() + "–" + horario.getHoraFin() + ")"));
+        try {
+            caja = cajaRepository.saveAndFlush(caja);
+        } catch (DataIntegrityViolationException e) {
+            return false;   // otra apertura ganó la carrera; el UNIQUE la frenó
+        }
+        // La abrió el sistema: el encargado del horario queda como responsable del tramo.
+        nuevoTramo(caja, encargado, encargado, ahora);
+        auditoriaService.registrar(null, TipoAccionAuditoria.ABRIR_CAJA_AUTOMATICO, "CAJA", caja.getId(),
+                "Abrió la caja sola por horario con " + encargado.getNombreCompleto()
+                        + ". Cierre programado: " + fin.format(FECHA_HORA));
+        return true;
+    }
+
+    /**
      * Cierre automático por horario. Lo llama la tarea programada cada minuto.
-     * Solo cierra la caja abierta HOY cuando ya pasó la hora de fin configurada
-     * para hoy y la caja se abrió antes de esa hora. Devuelve true si la cerró.
+     * Usa la hora con la que se ABRIÓ la caja (cierre_programado), no el horario
+     * que pueda tener el gerente ahora: cambiar la configuración no altera una
+     * caja ya abierta. Para cajas antiguas sin esa copia se usa el horario de hoy.
      *
-     * No se cierra nada si hoy no hay horario: sin configuración no hay cierre
-     * automático. Tampoco se vuelve a cerrar dos veces: una vez cerrada ya no
-     * está en estado ABIERTA. El arqueo automático asume lo esperado (no hay
-     * nadie contando el efectivo), y eso queda dicho en las observaciones.
+     * No se cierra nada si la caja no tiene hora congelada ni hoy hay horario:
+     * sin configuración no hay cierre automático. Tampoco se vuelve a cerrar dos
+     * veces: una vez cerrada ya no está en estado ABIERTA. El arqueo automático
+     * asume lo esperado (no hay nadie contando el efectivo), y eso queda dicho en
+     * las observaciones.
      */
     @Transactional
     public boolean cerrarAutomaticoPorHorario() {
@@ -267,10 +330,19 @@ public class CajaService {
 
         LocalDate hoy = LocalDate.now(ZONA);
         HorarioCaja horario = horarioCajaRepository.findByDiaSemana(hoy.getDayOfWeek()).orElse(null);
-        if (horario == null || horario.getHoraFin() == null) return false;
-
         LocalDateTime ahora = LocalDateTime.now(ZONA);
-        LocalDateTime cierre = hoy.atTime(horario.getHoraFin());
+
+        LocalDateTime cierre = caja.getCierreProgramado();
+        String origen;
+        if (cierre != null && cierre.toLocalDate().equals(hoy)) {
+            origen = "horario con el que se abrió";
+        } else if (horario != null && horario.getHoraFin() != null) {
+            // Caja antigua: no guardó la copia al abrirse, se usa la de hoy.
+            cierre = hoy.atTime(horario.getHoraFin());
+            origen = "horario configurado para hoy";
+        } else {
+            return false;
+        }
         if (ahora.isBefore(cierre)) return false;
 
         LocalDateTime apertura = caja.getFechaApertura();
@@ -278,8 +350,8 @@ public class CajaService {
 
         BigDecimal esperado = caja.getMontoInicial().add(movimientoRepository.sumarEfectivoPorCaja(caja.getId()));
         BigDecimal declarado = dosDecimales(esperado);
-        Usuario responsable = horario.getEncargado() != null ? horario.getEncargado()
-                : (caja.getEncargado() != null ? caja.getEncargado() : caja.getUsuarioApertura());
+        Usuario responsable = caja.getEncargado() != null ? caja.getEncargado()
+                : (horario != null && horario.getEncargado() != null ? horario.getEncargado() : caja.getUsuarioApertura());
         caja.setFechaCierre(ahora);
         caja.setUsuarioCierre(responsable);
         caja.setMontoFinalDeclarado(declarado);
@@ -290,12 +362,12 @@ public class CajaService {
         caja.setDiferencia(CERO);
         caja.setEstado(EstadoCaja.CERRADA);
         caja.setCajaAbierta(null);   // libera el UNIQUE: ya se puede abrir otra
-        caja.setObservaciones(concatenar(caja.getObservaciones(), "Cierre automático por horario a las "
-                + horario.getHoraFin() + " (arqueo automático: se asume el efectivo esperado)"));
+        caja.setObservaciones(concatenar(caja.getObservaciones(), "Cierre automático por " + origen + " a las "
+                + cierre.format(FECHA_HORA) + " (arqueo automático: se asume el efectivo esperado)"));
         cerrarTramo(caja, ahora);
         cajaRepository.save(caja);
         auditoriaService.registrar(null, TipoAccionAuditoria.CERRAR_CAJA_AUTOMATICO, "CAJA", caja.getId(),
-                "Cerró la caja sola por horario (" + cierre.format(FECHA_HORA) + ")");
+                "Cerró la caja sola por " + origen + " (" + cierre.format(FECHA_HORA) + ")");
         return true;
     }
 
@@ -458,8 +530,9 @@ public class CajaService {
      */
     @Transactional(readOnly = true)
     public ResumenCajaDTO resumen(Long idActor) {
-        LocalDateTime inicioHoy = LocalDate.now().atStartOfDay();
-        LocalDateTime finHoy = LocalDate.now().atTime(LocalTime.MAX);
+        LocalDate hoy = LocalDate.now(ZONA);
+        LocalDateTime inicioHoy = hoy.atStartOfDay();
+        LocalDateTime finHoy = hoy.atTime(LocalTime.MAX);
 
         BigDecimal totalDia = movimientoRepository.sumarPorRango(inicioHoy, finHoy);
 
@@ -483,8 +556,12 @@ public class CajaService {
                 .findByEstadoOrderByFechaPrestamoAsc(EstadoPrestamo.POR_COBRAR)
                 .stream().map(PrestamoService::aDTO).toList();
 
-        return new ResumenCajaDTO(abierta == null ? null : aDTO(abierta), totalDia, totalCaja,
-                porMetodo, porTipo, movimientos, puedoCobrar, porCobrar);
+        HorarioCaja horarioHoy = horarioCajaRepository.findByDiaSemana(hoy.getDayOfWeek()).orElse(null);
+        boolean cerradaHoy = cajaRepository.findFirstByEstadoAndFechaCierreBetweenOrderByFechaCierreDesc(
+                EstadoCaja.CERRADA, inicioHoy, finHoy).isPresent();
+        return new ResumenCajaDTO(abierta == null ? null : aDTO(abierta),
+                horarioHoy == null ? null : aHorarioDTO(horarioHoy), cerradaHoy,
+                totalDia, totalCaja, porMetodo, porTipo, movimientos, puedoCobrar, porCobrar);
     }
 
     /** Historial de cajas (cerradas y abiertas) del rango de fechas. */
@@ -573,7 +650,7 @@ public class CajaService {
         m.setDescuento(descuento == null ? CERO : dosDecimales(descuento));
         m.setMetodoPago(metodo);
         m.setDescripcion(recortar(descripcion));
-        m.setFecha(LocalDateTime.now());
+        m.setFecha(LocalDateTime.now(ZONA));
         m.setUsuario(actor);
         m.setIdPrestamo(idPrestamo);
         m.setIdPagoMulta(idPagoMulta);
@@ -610,6 +687,7 @@ public class CajaService {
         BigDecimal efectivo = movimientoRepository.sumarEfectivoPorCaja(caja.getId());
         BigDecimal esperado = caja.getMontoInicial().add(efectivo);
         return new CajaResponseDTO(caja.getId(), caja.getFechaApertura(), caja.getFechaCierre(),
+                caja.getCierreProgramado(),
                 caja.getUsuarioApertura() == null ? null : caja.getUsuarioApertura().getNombreCompleto(),
                 caja.getUsuarioCierre() == null ? null : caja.getUsuarioCierre().getNombreCompleto(),
                 caja.getMontoInicial(), caja.getMontoFinalDeclarado(), esperado, caja.getDiferencia(),
@@ -619,6 +697,15 @@ public class CajaService {
                 caja.getMontoContadoEncargado(), caja.getFechaArqueo(),
                 caja.getUsuarioArqueo() == null ? null : caja.getUsuarioArqueo().getNombreCompleto(),
                 tramos(caja));
+    }
+
+    /** El horario de hoy tal como lo ve la pantalla Caja (inicio, fin y encargado). */
+    private HorarioCajaResponseDTO aHorarioDTO(HorarioCaja h) {
+        Usuario encargado = h.getEncargado();
+        return new HorarioCajaResponseDTO(h.getId(),
+                h.getDiaSemana() == null ? null : h.getDiaSemana().name(), h.getHoraInicio(), h.getHoraFin(),
+                encargado == null ? null : encargado.getId(),
+                encargado == null ? null : encargado.getNombreCompleto());
     }
 
     /** Historial de encargados. Las cajas antiguas no tienen filas: su encargado es quien la abrió. */

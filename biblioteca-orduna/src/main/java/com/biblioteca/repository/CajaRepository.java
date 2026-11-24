@@ -32,6 +32,13 @@ public interface CajaRepository extends JpaRepository<Caja, Long> {
     @Query("SELECT c FROM Caja c WHERE c.id = :idCaja")
     Optional<Caja> findByIdForUpdate(@Param("idCaja") Long idCaja);
 
+    /**
+     * Última caja cerrada en un rango. La apertura automática la usa para no
+     * volver a abrir una caja que alguien ya cerró hoy.
+     */
+    Optional<Caja> findFirstByEstadoAndFechaCierreBetweenOrderByFechaCierreDesc(
+            EstadoCaja estado, LocalDateTime desde, LocalDateTime hasta);
+
     /** Historial: las cajas abiertas en un rango de fechas. */
     List<Caja> findByFechaAperturaBetweenOrderByFechaAperturaDesc(LocalDateTime desde, LocalDateTime hasta);
 

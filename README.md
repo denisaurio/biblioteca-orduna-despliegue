@@ -68,8 +68,12 @@ Abre http://localhost:5173
 ## Horario de caja
 
 El gerente configura en **Configuración de caja** un horario por día (encargado, hora de inicio y
-hora de fin; p. ej. Lunes–Viernes 08:00–20:00 y Sábado 08:00–15:00). El bibliotecario ve en la
-pantalla Caja a qué hora se le cierra la caja, y el backend la cierra sola al pasarse esa hora.
+hora de fin; p. ej. Lunes–Viernes 08:00–20:00 y Sábado 08:00–15:00). Dentro de ese rango el backend
+**abre la caja sola** con el encargado de hoy (S/ 0.00 de monto inicial) y muestra en la pantalla
+Caja cuánto falta para el cierre. Al abrir se guarda la hora de fin con la que nació esa caja:
+si luego cambias la configuración, la caja ya abierta **sigue cerrándose a la hora original**.
+Si ya se cerró hoy, no se vuelve a abrir. Sin horario (o sin encargado) no hay apertura ni cierre
+automáticos.
 
 ## Documentación
 

@@ -11,7 +11,7 @@
 //
 // La caja NO es el turno (la bitacora del personal) ni el cierre diario: son tres cosas
 // distintas que conviven.
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   abrirCaja,
   arquearCaja,
@@ -25,7 +25,6 @@ import {
 import { anularPrestamo, cobrarPrestamo } from '../../api/prestamosApi.js';
 import { getUsuarios } from '../../api/usuariosApi.js';
 import { useAuth } from '../../context/AuthContext.jsx';
-import { getMiHorarioCaja } from '../../api/configuracionCajaApi.js';
 import { useApi, useAccion, useRefrescoTiempoReal } from '../../hooks.js';
 import Modal from '../../components/common/Modal.jsx';
 import Campo from '../../components/common/Campo.jsx';
@@ -43,13 +42,48 @@ import {
   tipoAccesoVirtual,
   tipoMovimientoCaja,
 } from '../../utils/estados.js';
-import { fmtFecha, fmtFechaHora, fmtSoles, hoyISO, inicioMesISO, nombreRol } from '../../utils/formato.js';
+import { fmtFecha, fmtFechaHora, fmtHora, fmtSoles, hoyISO, inicioMesISO, nombreRol } from '../../utils/formato.js';
 import './Caja.css';
+
+const ZONA_LIMA = 'America/Lima';
+const OFFSET_LIMA = '-05:00'; // Lima no tiene horario de verano
+
+/** "2026-11-24T20:00:00" ( LocalDateTime del backend, sin zona) -> Date real. */
+function fechaLima(valor) {
+  if (!valor) return null;
+  const s = String(valor);
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(s) && !/(Z|[+-]\d{2}:?\d{2})$/.test(s)) {
+    const d = new Date(`${s.slice(0, 19)}${OFFSET_LIMA}`);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+/** "20:00" -> Date de hoy en Lima (para el horario todavía no abierto). */
+function horaDeHoyEnLima(hhmm) {
+  if (!hhmm) return null;
+  const partes = new Intl.DateTimeFormat('en-CA', {
+    timeZone: ZONA_LIMA, year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(new Date());
+  const v = Object.fromEntries(partes.map((p) => [p.type, p.value]));
+  const d = new Date(`${v.year}-${v.month}-${v.day}T${String(hhmm).slice(0, 5)}:00${OFFSET_LIMA}`);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+/** Cuánto falta para una hora, en horas y minutos. */
+function faltanPara(destino, ahora) {
+  if (!destino) return '';
+  const milis = destino.getTime() - ahora;
+  if (milis <= 0) return 'Ya llegó la hora programada';
+  const minutos = Math.ceil(milis / 60000);
+  const horas = Math.floor(minutos / 60);
+  return `Faltan ${horas ? `${horas} h ` : ''}${minutos % 60} min`;
+}
 
 function Caja() {
   const [pestana, setPestana] = useState('HOY');
   const { datos: resumen, cargando, recargar } = useApi(() => getCajaActual(), [], null);
-  const { datos: miHorario } = useApi(() => getMiHorarioCaja(), [], null);
   useRefrescoTiempoReal(['cajas', 'prestamos', 'devoluciones', 'multas'], recargar);
 
   return (
@@ -70,7 +104,7 @@ function Caja() {
       </div>
 
       {pestana === 'HOY' && (
-        <TabHoy resumen={resumen} cargando={cargando} recargar={recargar} miHorario={miHorario} />
+        <TabHoy resumen={resumen} cargando={cargando} recargar={recargar} />
       )}
       {pestana === 'PENDIENTES' && <TabPendientes />}
       {pestana === 'HISTORIAL' && <TabHistorial />}
@@ -95,14 +129,26 @@ function usePersonal(activo) {
 }
 
 /** Lo que se ve al abrir la pantalla: la caja abierta (o el cartel para abrirla) y el dia. */
-function TabHoy({ resumen, cargando, recargar, miHorario }) {
+function TabHoy({ resumen, cargando, recargar }) {
   const { esGerente } = useAuth();
   const personal = usePersonal(esGerente);
   const [modal, setModal] = useState(null); // 'CERRAR' | 'ARQUEO' | 'ENCARGADO'
+  const [ahora, setAhora] = useState(() => Date.now());
   const { ejecutar, enviando } = useAccion();
   const caja = resumen?.caja_abierta;
   const puedoCobrar = resumen?.puedo_cobrar === true;
-  const horarioHoy = miHorario?.horario_hoy;
+  const horarioHoy = resumen?.horario_hoy;
+  const cerradaHoy = resumen?.caja_cerrada_hoy === true;
+
+  // La cuenta regresiva se mueve sola; el resumen se refresca también por si
+  // el cron abrió o cerró la caja mientras la pantalla estaba abierta.
+  useEffect(() => {
+    const id = setInterval(() => {
+      setAhora(Date.now());
+      recargar({ silencioso: true });
+    }, 30000);
+    return () => clearInterval(id);
+  }, [recargar]);
 
   const abrir = async (datos) => {
     const r = await ejecutar(() => abrirCaja(datos), 'Caja abierta');
@@ -116,20 +162,46 @@ function TabHoy({ resumen, cargando, recargar, miHorario }) {
 
   if (cargando && !resumen) return <Cargando />;
 
-  // El gerente configura el horario; aquí se ve a qué hora se cierra la caja sola.
-  const avisoHorario = (
-    <div className="caja-aviso-horario">
-      {horarioHoy ? (
-        <>
-          Hoy la caja la atiende <b>{horarioHoy.nombre_encargado || '—'}</b> y se cierra sola a las{' '}
-          <b className="mono">{String(horarioHoy.hora_fin || '').slice(0, 5)}</b>.
-          {caja && esGerente && ' Puedes cerrarla antes con «Cerrar caja».'}
-        </>
-      ) : (
-        'Hoy no hay una caja programada a tu nombre: no se cierra automáticamente.'
-      )}
-    </div>
-  );
+  // Si la caja está abierta manda su hora CONGELADA: cambiar el horario no la altera.
+  // Si está cerrada, mostramos cuánto falta para que se abra sola con su encargado.
+  const cierreCaja = caja?.cierre_programado;
+  const inicioHoy = horarioHoy?.hora_inicio ? String(horarioHoy.hora_inicio).slice(0, 5) : '';
+  const finHoy = horarioHoy?.hora_fin ? String(horarioHoy.hora_fin).slice(0, 5) : '';
+  const inicioHoyDate = horaDeHoyEnLima(inicioHoy);
+  const finHoyDate = horaDeHoyEnLima(finHoy);
+  let avisoHorario;
+
+  if (caja && cierreCaja) {
+    avisoHorario = (
+      <div className="caja-aviso-horario">
+        Esta caja abrió con <b>{caja.nombre_encargado || '—'}</b> y se cierra sola a las{' '}
+        <b className="mono">{fmtHora(cierreCaja)}</b>.{' '}
+        <b className="caja-cuenta">{faltanPara(fechaLima(cierreCaja), ahora)}</b>.{' '}
+        Cambiar el horario no cambia esta caja.
+        {esGerente && ' Puedes cerrarla antes con «Cerrar caja».'}
+      </div>
+    );
+  } else if (horarioHoy) {
+    let detalle;
+    if (!horarioHoy.id_encargado) {
+      detalle = <>Hoy hay horario de <b className="mono">{inicioHoy}</b> a <b className="mono">{finHoy}</b>, pero no se abre sola porque no tiene encargado.</>;
+    } else if (cerradaHoy) {
+      detalle = <>Hoy la caja ya se cerró; no se vuelve a abrir sola. El horario era de <b className="mono">{inicioHoy}</b> a <b className="mono">{finHoy}</b>.</>;
+    } else if (ahora < (inicioHoyDate?.getTime() ?? Infinity)) {
+      detalle = <>Hoy la atiende <b>{horarioHoy.nombre_encargado}</b> de <b className="mono">{inicioHoy}</b> a <b className="mono">{finHoy}</b>. <b className="caja-cuenta">{faltanPara(inicioHoyDate, ahora)}</b> para la apertura automática.</>;
+    } else if (ahora >= (finHoyDate?.getTime() ?? Infinity)) {
+      detalle = <>Ya pasó el horario de hoy (<b className="mono">{inicioHoy}–{finHoy}</b>): la caja no se abre sola fuera de ese rango.</>;
+    } else {
+      detalle = <>Hoy la caja se abre sola con <b>{horarioHoy.nombre_encargado}</b> y se cierra a las <b className="mono">{finHoy}</b>. <b className="caja-cuenta">{faltanPara(finHoyDate, ahora)}</b> para el cierre.</>;
+    }
+    avisoHorario = <div className="caja-aviso-horario">{detalle}</div>;
+  } else {
+    avisoHorario = (
+      <div className="caja-aviso-horario">
+        Hoy no hay horario configurado: la caja no se abre ni se cierra automáticamente.
+      </div>
+    );
+  }
 
   if (!caja) {
     return (
