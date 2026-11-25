@@ -400,9 +400,14 @@ Estas reglas dan sentido al sistema. Si cambias una, cambia también
     caja**, que sigue cerrándose a la hora con la que abrió. La cierra sola al
     pasarse esa hora (para cajas antiguas sin copia, usa el horario de hoy);
     si ya se cerró hoy, no se reabre. Sin horario no hay apertura ni cierre
-    automáticos. El arqueo automático asume el efectivo esperado (no hay
-    arqueo humano) y eso queda en observaciones y en la auditoría
-    (`ABRIR_CAJA_AUTOMATICO`, `CERRAR_CAJA_AUTOMATICO`).
+    automáticos. **30 minutos antes del cierre se avisa al encargado** (campana,
+    una sola vez por caja: `cajas.aviso_cierre_enviado`). **El cierre automático
+    nunca asume que el efectivo cuadra**: si el encargado contó ("Contar
+    efectivo"), se cierra con ESE monto y queda la diferencia real; si no contó,
+    queda `cajas.pendiente_arqueo = true` (sin monto ni diferencia), se avisa a los
+    gerentes y el gerente registra lo contado con `POST /api/cajas/{id}/arqueo-final`.
+    Todo queda en observaciones y en la auditoría (`ABRIR_CAJA_AUTOMATICO`,
+    `CERRAR_CAJA_AUTOMATICO`, `ARQUEAR_CAJA`).
 
 ---
 
@@ -622,7 +627,9 @@ puede asumir que existe:
   de minutos después de la hora actual. `cierre_programado` queda congelado al
   abrir: si editas el horario mientras la caja está abierta, sigue cerrándose
   a la hora original. El cierre usa el encargado de la caja (o del horario)
-  como responsable del arqueo automático.
+  como responsable. El aviso de 30 minutos lo hace `CajaService.avisarCierreProximo`
+  (la tarea lo llama después de abrir y antes de cerrar, así una caja abierta a menos
+  de 30 minutos del cierre también recibe su aviso).
 - **Auditoría (regla 31): la tabla `auditorias` no se purga sola** y crece con
   cada acción del personal. Si hay que limpiarla, se borran a mano las filas
   antiguas.

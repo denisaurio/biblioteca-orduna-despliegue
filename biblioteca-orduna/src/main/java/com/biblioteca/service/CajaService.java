@@ -73,13 +73,18 @@ public class CajaService {
     private final DevolucionRepository devolucionRepository;
     private final UsuarioService usuarioService;
     private final AuditoriaService auditoriaService;
+    private final NotificacionService notificacionService;
+
+    /** Minutos antes del cierre automático en que se avisa al encargado. */
+    static final int MINUTOS_AVISO_CIERRE = 30;
 
     public CajaService(CajaRepository cajaRepository, CajaMovimientoRepository movimientoRepository,
                        HorarioCajaRepository horarioCajaRepository, ComprobantePagoRepository comprobanteRepository,
                        PrestamoRepository prestamoRepository, ReservaRepository reservaRepository,
                        AccesoVirtualRepository accesoRepository, MultaRepository multaRepository,
                        CajaEncargadoRepository encargadoRepository, DevolucionRepository devolucionRepository,
-                       UsuarioService usuarioService, AuditoriaService auditoriaService) {
+                       UsuarioService usuarioService, AuditoriaService auditoriaService,
+                       NotificacionService notificacionService) {
         this.cajaRepository = cajaRepository;
         this.movimientoRepository = movimientoRepository;
         this.horarioCajaRepository = horarioCajaRepository;
@@ -92,6 +97,7 @@ public class CajaService {
         this.devolucionRepository = devolucionRepository;
         this.usuarioService = usuarioService;
         this.auditoriaService = auditoriaService;
+        this.notificacionService = notificacionService;
     }
 
     // ---------------- abrir, encargado, arqueo y cierre ----------------
@@ -316,9 +322,13 @@ public class CajaService {
      *
      * No se cierra nada si la caja no tiene hora congelada ni hoy hay horario:
      * sin configuración no hay cierre automático. Tampoco se vuelve a cerrar dos
-     * veces: una vez cerrada ya no está en estado ABIERTA. El arqueo automático
-     * asume lo esperado (no hay nadie contando el efectivo), y eso queda dicho en
-     * las observaciones.
+     * veces: una vez cerrada ya no está en estado ABIERTA.
+     *
+     * Arqueo: si el encargado contó el efectivo ("Contar efectivo"), se cierra con ESE
+     * monto y queda el sobrante o faltante real. Si no contó, la caja queda
+     * "pendiente de arqueo" (sin monto ni diferencia), se avisa a los gerentes y el
+     * gerente registra lo contado después con completarArqueo. Nunca se asume que el
+     * efectivo cuadra: así no se esconde un faltante.
      */
     @Transactional
     public boolean cerrarAutomaticoPorHorario() {
@@ -348,27 +358,98 @@ public class CajaService {
         LocalDateTime apertura = caja.getFechaApertura();
         if (apertura == null || !apertura.toLocalDate().equals(hoy) || !apertura.isBefore(cierre)) return false;
 
-        BigDecimal esperado = caja.getMontoInicial().add(movimientoRepository.sumarEfectivoPorCaja(caja.getId()));
-        BigDecimal declarado = dosDecimales(esperado);
+        BigDecimal esperado = dosDecimales(
+                caja.getMontoInicial().add(movimientoRepository.sumarEfectivoPorCaja(caja.getId())));
         Usuario responsable = caja.getEncargado() != null ? caja.getEncargado()
                 : (horario != null && horario.getEncargado() != null ? horario.getEncargado() : caja.getUsuarioApertura());
         caja.setFechaCierre(ahora);
         caja.setUsuarioCierre(responsable);
-        caja.setMontoFinalDeclarado(declarado);
-        // Arqueo automático: nadie contó el efectivo, se asume lo esperado.
-        caja.setMontoContadoEncargado(declarado);
-        caja.setFechaArqueo(ahora);
-        caja.setUsuarioArqueo(responsable);
-        caja.setDiferencia(CERO);
+        String arqueo;
+        if (caja.getMontoContadoEncargado() != null) {
+            // El encargado contó: se cierra con lo que contó (el arqueo ya tiene autor y fecha).
+            BigDecimal contado = caja.getMontoContadoEncargado();
+            caja.setMontoFinalDeclarado(contado);
+            caja.setDiferencia(contado.subtract(esperado));
+            caja.setPendienteArqueo(false);
+            arqueo = "contó S/ " + contado + ", se esperaba S/ " + esperado + descripcionDiferencia(caja.getDiferencia());
+        } else {
+            // Nadie contó: queda pendiente; no se inventa un monto contado.
+            caja.setMontoFinalDeclarado(null);
+            caja.setDiferencia(null);
+            caja.setPendienteArqueo(true);
+            arqueo = "sin arqueo: se esperaban S/ " + esperado + " en efectivo y falta registrar lo contado";
+        }
         caja.setEstado(EstadoCaja.CERRADA);
         caja.setCajaAbierta(null);   // libera el UNIQUE: ya se puede abrir otra
         caja.setObservaciones(concatenar(caja.getObservaciones(), "Cierre automático por " + origen + " a las "
-                + cierre.format(FECHA_HORA) + " (arqueo automático: se asume el efectivo esperado)"));
+                + cierre.format(FECHA_HORA) + " (" + arqueo + ")"));
         cerrarTramo(caja, ahora);
         cajaRepository.save(caja);
         auditoriaService.registrar(null, TipoAccionAuditoria.CERRAR_CAJA_AUTOMATICO, "CAJA", caja.getId(),
-                "Cerró la caja sola por " + origen + " (" + cierre.format(FECHA_HORA) + ")");
+                "Cerró la caja sola por " + origen + " (" + cierre.format(FECHA_HORA) + "): " + arqueo);
+        if (caja.isPendienteArqueo()) {
+            notificacionService.avisoAGerentes("La caja " + codigo(caja) + " se cerró sola por horario sin arqueo. "
+                    + "Registra el efectivo contado en Caja → Historial.", caja.getId());
+        }
         return true;
+    }
+
+    /**
+     * Aviso al encargado: la caja se cierra sola en 30 minutos o menos (una sola vez por
+     * caja). Lo llama la tarea de cada minuto, después de abrir y antes de cerrar.
+     * Devuelve true si avisó.
+     */
+    @Transactional
+    public boolean avisarCierreProximo() {
+        Caja caja = cajaRepository.findByEstadoOrderByFechaAperturaDescForUpdate(EstadoCaja.ABIERTA)
+                .stream().findFirst().orElse(null);
+        if (caja == null || caja.getCierreProgramado() == null || caja.isAvisoCierreEnviado()) return false;
+        LocalDateTime ahora = LocalDateTime.now(ZONA);
+        LocalDateTime cierre = caja.getCierreProgramado();
+        if (!ahora.isBefore(cierre) || ahora.plusMinutes(MINUTOS_AVISO_CIERRE).isBefore(cierre)) return false;
+        caja.setAvisoCierreEnviado(true);
+        if (caja.getEncargado() != null) {
+            notificacionService.avisoInterno(caja.getEncargado(), "La caja " + codigo(caja)
+                    + " se cierra sola hoy a las " + cierre.toLocalTime().toString().substring(0, 5)
+                    + ". Cuenta el efectivo (botón \"Contar efectivo\") antes del cierre.", caja.getId());
+        }
+        return true;
+    }
+
+    /**
+     * Una caja que se cerró sola sin arqueo: el gerente registra el efectivo contado y el
+     * sistema calcula el sobrante o faltante.
+     */
+    @Transactional
+    public CajaResponseDTO completarArqueo(Long idCaja, ArqueoCajaDTO datos, Long idActor) {
+        Usuario actor = exigirGerente(idActor, "registrar el arqueo de una caja cerrada");
+        Caja caja = cajaRepository.findByIdForUpdate(idCaja)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No existe la caja con id " + idCaja));
+        if (caja.getEstado() != EstadoCaja.CERRADA || !caja.isPendienteArqueo()) {
+            throw new OperacionInvalidaException("Esa caja no tiene el arqueo pendiente");
+        }
+        BigDecimal contado = dosDecimales(datos.montoContado());
+        BigDecimal esperado = caja.getMontoInicial().add(movimientoRepository.sumarEfectivoPorCaja(idCaja));
+        caja.setMontoFinalDeclarado(contado);
+        caja.setMontoContadoEncargado(contado);
+        caja.setDiferencia(contado.subtract(esperado));
+        caja.setPendienteArqueo(false);
+        caja.setUsuarioArqueo(actor);
+        caja.setFechaArqueo(LocalDateTime.now(ZONA));
+        caja.setObservaciones(concatenar(caja.getObservaciones(), datos.observaciones()));
+        cajaRepository.save(caja);
+        auditoriaService.registrar(idActor, TipoAccionAuditoria.ARQUEAR_CAJA, "CAJA", caja.getId(),
+                "Registró el arqueo de la caja " + codigo(caja) + " (cerrada por horario): contó S/ " + contado
+                        + ", se esperaba S/ " + esperado + descripcionDiferencia(caja.getDiferencia()));
+        return aDTO(caja);
+    }
+
+    private static String codigo(Caja caja) {
+        return "C" + String.format("%03d", caja.getId());
+    }
+
+    private static String descripcionDiferencia(BigDecimal diferencia) {
+        return diferencia.signum() == 0 ? " (cuadra)" : diferencia.signum() > 0 ? " (sobrante)" : " (faltante)";
     }
 
     // ---------------- los cobros (la única entrada del dinero) ----------------
@@ -696,7 +777,7 @@ public class CajaService {
                 caja.getEncargado() == null ? null : caja.getEncargado().getNombreCompleto(),
                 caja.getMontoContadoEncargado(), caja.getFechaArqueo(),
                 caja.getUsuarioArqueo() == null ? null : caja.getUsuarioArqueo().getNombreCompleto(),
-                tramos(caja));
+                tramos(caja), caja.isPendienteArqueo());
     }
 
     /** El horario de hoy tal como lo ve la pantalla Caja (inicio, fin y encargado). */

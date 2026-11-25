@@ -31,3 +31,6 @@ export const getCaja = (idCaja) => axiosClient.get(`/cajas/${idCaja}`);
 
 /** Qué libros faltan: préstamos sin devolver, reservas y pedidos sin cobrar. */
 export const getCajaPendientes = () => axiosClient.get('/cajas/pendientes');
+
+/** Caja que se cerró sola sin arqueo: el gerente registra el efectivo contado. datos: { monto_contado, observaciones } */
+export const completarArqueoCaja = (idCaja, datos) => axiosClient.post(`/cajas/${idCaja}/arqueo-final`, datos);

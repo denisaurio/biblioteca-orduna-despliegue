@@ -226,9 +226,13 @@ El backend comprueba cada minuto (hora de Lima): dentro del rango `hora_inicio`�
 abre la caja sola con el encargado configurado (si no hay otra abierta y el día tiene encargado),
 con `monto_inicial = 0.00`. Al abrir guarda en `cajas.cierre_programado` una copia de la hora de fin:
 **cambiar el horario después no altera esa caja**, que se cierra a la hora con la que abrió. Si ya se
-cerró hoy, no se vuelve a abrir. Sin horario no hay apertura ni cierre automáticos. El arqueo
-automático asume el efectivo esperado (lo dice en `observaciones`) y queda auditado como
-`ABRIR_CAJA_AUTOMATICO` y `CERRAR_CAJA_AUTOMATICO`. `GET /api/cajas/actual` devuelve
+cerró hoy, no se vuelve a abrir. Sin horario no hay apertura ni cierre automáticos.
+**30 minutos antes del cierre se avisa al encargado** (campana, una vez por caja). **El cierre
+automático no asume que el efectivo cuadra**: si el encargado contó (`POST /api/cajas/{id}/arqueo`)
+se cierra con ese monto y su diferencia real; si no, la caja queda con `pendiente_arqueo = true`
+(sin monto ni diferencia), se avisa a los gerentes y el gerente registra lo contado con
+`POST /api/cajas/{id}/arqueo-final` `{"monto_contado":120}` (👑). Queda auditado como
+`ABRIR_CAJA_AUTOMATICO`, `CERRAR_CAJA_AUTOMATICO` y `ARQUEAR_CAJA`. `GET /api/cajas/actual` devuelve
 `horario_hoy`, `caja_cerrada_hoy` y `caja_abierta.cierre_programado` para la cuenta regresiva.
 
 Movimientos: `COBRO_PRESTAMO_FECHA_FIJA`, `COBRO_PRESTAMO_ABIERTO` (al devolver, por el precio de

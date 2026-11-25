@@ -101,6 +101,22 @@ public class NotificacionService {
         return personal.size();
     }
 
+    /**
+     * Aviso interno para una persona del personal (por ejemplo, "la caja se cierra en 30
+     * minutos"). No depende de los interruptores de avisos: esos son para los lectores.
+     */
+    @Transactional
+    public void avisoInterno(Usuario destinatario, String mensaje, Long idReferencia) {
+        guardar(destinatario, TipoNotificacion.ADMINISTRATIVO, mensaje, idReferencia, null);
+    }
+
+    /** Aviso interno para todos los gerentes activos. */
+    @Transactional
+    public void avisoAGerentes(String mensaje, Long idReferencia) {
+        usuarioRepository.findByRolAndActivoTrue(Rol.GERENTE)
+                .forEach(g -> guardar(g, TipoNotificacion.ADMINISTRATIVO, mensaje, idReferencia, null));
+    }
+
     /** Aviso "nuevo libro en catálogo" a todos los lectores activos. */
     @Transactional
     public int notificarNuevoLibro(Libro libro) {

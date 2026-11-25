@@ -33,6 +33,16 @@
 .caja-encargado-titulo { font-size: 14.5px; margin-bottom: 3px; }
 .caja-actual { font-weight: 700; color: var(--green-text); }
 
+/* Caja cerrada por horario sin arqueo */
+.caja-sin-arqueo {
+  display: inline-block; margin-top: 4px; padding: 1px 8px; border-radius: 10px;
+  font-size: 11px; background: var(--amber-bg); color: var(--amber-text); font-weight: 600;
+}
+.caja-arqueo-final {
+  padding: 12px 14px; margin-bottom: 14px; border-radius: 8px;
+  background: var(--amber-bg); font-size: 13px;
+}
+
 @media (max-width: 900px) {
   .caja-stats, .caja-desglose { grid-template-columns: 1fr; }
 }

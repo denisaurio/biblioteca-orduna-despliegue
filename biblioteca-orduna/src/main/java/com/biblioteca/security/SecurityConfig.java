@@ -114,7 +114,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/almacenamiento/preparar").hasRole(GERENTE)
                         // Caja: abrir, cerrar y cambiar el encargado es solo del gerente. El
                         // encargado (un bibliotecario) cobra y hace el arqueo (bloque de abajo).
-                        .requestMatchers(HttpMethod.POST, "/api/cajas", "/api/cajas/*/cerrar").hasRole(GERENTE)
+                        .requestMatchers(HttpMethod.POST, "/api/cajas", "/api/cajas/*/cerrar", "/api/cajas/*/arqueo-final").hasRole(GERENTE)
                         .requestMatchers(HttpMethod.PUT, "/api/cajas/*/encargado").hasRole(GERENTE)
                         // CRM: Ficha 360 del cliente y notas internas. Solo el gerente.
                         .requestMatchers("/api/crm/**").hasRole(GERENTE)

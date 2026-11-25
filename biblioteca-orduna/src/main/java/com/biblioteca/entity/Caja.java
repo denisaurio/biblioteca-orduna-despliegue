@@ -103,6 +103,22 @@ public class Caja {
     @JoinColumn(name = "id_usuario_arqueo")
     private Usuario usuarioArqueo;
 
+    /**
+     * true si se cerró sola por horario sin que el encargado contara el efectivo: el
+     * gerente registra después lo contado (POST /api/cajas/{id}/arqueo-final).
+     */
+    @Column(name = "pendiente_arqueo")
+    private Boolean pendienteArqueo;
+
+    /** Ya se avisó al encargado que la caja se cierra en 30 minutos o menos. */
+    @Column(name = "aviso_cierre_enviado")
+    private Boolean avisoCierreEnviado;
+
+    public boolean isPendienteArqueo() { return Boolean.TRUE.equals(pendienteArqueo); }
+    public void setPendienteArqueo(Boolean pendienteArqueo) { this.pendienteArqueo = pendienteArqueo; }
+    public boolean isAvisoCierreEnviado() { return Boolean.TRUE.equals(avisoCierreEnviado); }
+    public void setAvisoCierreEnviado(Boolean avisoCierreEnviado) { this.avisoCierreEnviado = avisoCierreEnviado; }
+
     public Usuario getEncargado() { return encargado; }
     public void setEncargado(Usuario encargado) { this.encargado = encargado; }
     public BigDecimal getMontoContadoEncargado() { return montoContadoEncargado; }

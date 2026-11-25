@@ -821,9 +821,13 @@ CORS
         Al abrir se guarda en cajas.cierre_programado una COPIA de la hora de
         fin: si el gerente cambia el horario despues, la caja ya abierta sigue
         cerrandose a la hora con la que abrio. Si ya se cerro hoy no se reabre.
-        Sin horario no hay apertura ni cierre automaticos. El arqueo automatico
-        asume el efectivo esperado y lo dice en observaciones; queda auditado
-        como ABRIR_CAJA_AUTOMATICO y CERRAR_CAJA_AUTOMATICO.
+        Sin horario no hay apertura ni cierre automaticos.
+        30 MINUTOS ANTES del cierre se AVISA AL ENCARGADO (campana, una sola vez)
+        para que cuente el efectivo. Al cerrarse sola: si el encargado conto, se
+        cierra con ESE monto (queda el sobrante o faltante real); si no conto,
+        queda "SIN ARQUEO" (no se inventa el monto), se avisa a los gerentes y el
+        administrador registra lo contado en Historial -> Ver. Queda auditado
+        como ABRIR_CAJA_AUTOMATICO, CERRAR_CAJA_AUTOMATICO y ARQUEAR_CAJA.
       - La pantalla Caja tiene tres pestanas: HOY (encargado, prestamos por
         cobrar con "Cobrar" y "Anular", monto inicial, cobrado, total del dia,
         desglose por metodo y por tipo, arqueo, historial de encargados, los
@@ -1136,8 +1140,10 @@ Todos los demas endpoints de listado devuelven el arreglo completo, sin paginar.
       SOLA con el encargado de hoy (si no hay otra abierta), y se CIERRA SOLA al
       pasar la hora de fin. Al abrir se COPIA esa hora en cierre_programado:
       cambiar el horario no altera la caja ya abierta. Sin horario (o sin
-      encargado) no hay apertura ni cierre automaticos. El arqueo automatico
-      asume el efectivo esperado y lo deja en observaciones y auditoria.
+      encargado) no hay apertura ni cierre automaticos. 30 minutos antes del
+      cierre se avisa al encargado. El cierre automatico usa lo que conto el
+      encargado; si no conto, queda "sin arqueo" y el administrador registra lo
+      contado despues.
 
 
 --------------------------------------------------------------------------------

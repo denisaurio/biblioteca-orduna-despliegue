@@ -17,6 +17,7 @@ import {
   arquearCaja,
   cambiarEncargadoCaja,
   cerrarCaja,
+  completarArqueoCaja,
   getCaja,
   getCajaActual,
   getCajaPendientes,
@@ -782,7 +783,10 @@ function TabHistorial() {
                     <div className="pick-sub">{Number(c.diferencia) > 0 ? 'Sobrante' : 'Faltante'}</div>
                   )}
                 </td>
-                <td><Estado valor={c.estado} mapa={estadoCaja} /></td>
+                <td>
+                  <Estado valor={c.estado} mapa={estadoCaja} />
+                  {c.pendiente_arqueo && <div className="caja-sin-arqueo">Sin arqueo</div>}
+                </td>
                 <td><button className="btn-ghost btn-sm" onClick={() => setDetalle(c.id)}>Ver</button></td>
               </tr>
             ))}
@@ -797,8 +801,9 @@ function TabHistorial() {
 
 /** El detalle de una caja: sus movimientos. */
 function ModalDetalle({ idCaja, onClose }) {
-  const { datos, cargando } = useApi(() => getCaja(idCaja), [idCaja], null);
+  const { datos, cargando, recargar } = useApi(() => getCaja(idCaja), [idCaja], null);
   const caja = datos?.caja;
+  const { esGerente } = useAuth();
 
   return (
     <Modal
@@ -820,6 +825,11 @@ function ModalDetalle({ idCaja, onClose }) {
             <dd>{caja.diferencia != null ? fmtSoles(caja.diferencia) : '—'}</dd>
             <dt>Estado</dt><dd><Estado valor={caja.estado} mapa={estadoCaja} /></dd>
           </dl>
+          {caja.pendiente_arqueo && (
+            esGerente
+              ? <FormArqueoFinal caja={caja} onHecho={recargar} />
+              : <div className="error-form">Esta caja se cerró sola sin arqueo. El administrador debe registrar el efectivo contado.</div>
+          )}
           <HistorialEncargados encargados={caja.encargados} />
           <h3 className="seccion-titulo" style={{ marginTop: 18 }}>Movimientos</h3>
           <TablaMovimientos movimientos={datos.movimientos || []} />
@@ -867,6 +877,36 @@ function TablaPrestamosCaja({ prestamos, idCaja, vacio }) {
         </tbody>
       </table>
     </div>
+  );
+}
+
+/**
+ * Caja que se cerró sola por horario sin que el encargado contara el efectivo: el
+ * administrador escribe lo que se contó y el sistema calcula el sobrante o faltante.
+ */
+function FormArqueoFinal({ caja, onHecho }) {
+  const [monto, setMonto] = useState('');
+  const { ejecutar, enviando } = useAccion();
+  const esperado = Number(caja.esperado_efectivo || 0);
+  const guardar = async (e) => {
+    e.preventDefault();
+    const r = await ejecutar(() => completarArqueoCaja(caja.id, { monto_contado: Number(monto) }), 'Arqueo registrado');
+    if (r) onHecho();
+  };
+  return (
+    <form className="caja-arqueo-final" onSubmit={guardar}>
+      <b>Esta caja se cerró sola sin arqueo.</b> Escribe el efectivo que se contó en el cajón
+      (se esperaba {fmtSoles(esperado)}).
+      <div className="form-grid" style={{ marginTop: 10 }}>
+        <Campo label="Efectivo contado (S/)">
+          <input type="number" step="0.01" min="0" value={monto} onChange={(e) => setMonto(e.target.value)} required />
+        </Campo>
+        <div style={{ alignSelf: 'end' }}>
+          <button className="btn-primary" type="submit" disabled={enviando || monto === ''}>Registrar arqueo</button>
+        </div>
+        {monto !== '' && <Diferencia contado={Number(monto)} esperado={esperado} />}
+      </div>
+    </form>
   );
 }
 

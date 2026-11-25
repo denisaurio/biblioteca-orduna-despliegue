@@ -51,6 +51,13 @@ public class CajaController {
         return cajaService.cambiarEncargado(idCaja, datos, actor.id());
     }
 
+    /** POST /api/cajas/{id}/arqueo-final - el gerente registra lo contado de una caja que se cerró sola sin arqueo. */
+    @PostMapping("/{idCaja}/arqueo-final")
+    public CajaResponseDTO arqueoFinal(@PathVariable Long idCaja, @Valid @RequestBody ArqueoCajaDTO datos,
+                                       @AuthenticationPrincipal UsuarioAutenticado actor) {
+        return cajaService.completarArqueo(idCaja, datos, actor.id());
+    }
+
     /** POST /api/cajas/{id}/arqueo - el encargado declara el efectivo contado. Body: {"monto_contado":120.50} */
     @PostMapping("/{idCaja}/arqueo")
     public CajaResponseDTO arquear(@PathVariable Long idCaja, @Valid @RequestBody ArqueoCajaDTO datos,

@@ -15,6 +15,8 @@ import java.util.List;
  * encargado: el empleado que cobra ahora; encargados: historial (quién, desde, hasta).
  * monto_contado_encargado: el efectivo que contó el encargado (arqueo), antes de que el gerente cierre.
  * cierre_programado: hora de fin con la que se abrió la caja; no cambia si luego se edita el horario.
+ * pendiente_arqueo: se cerró sola por horario sin que el encargado contara el efectivo;
+ *   el gerente debe registrar lo contado (POST /api/cajas/{id}/arqueo-final).
  */
 public record CajaResponseDTO(
         Long id,
@@ -35,5 +37,6 @@ public record CajaResponseDTO(
         @JsonProperty("monto_contado_encargado") BigDecimal montoContadoEncargado,
         @JsonProperty("fecha_arqueo") LocalDateTime fechaArqueo,
         @JsonProperty("nombre_usuario_arqueo") String nombreUsuarioArqueo,
-        List<EncargadoCajaDTO> encargados
+        List<EncargadoCajaDTO> encargados,
+        @JsonProperty("pendiente_arqueo") boolean pendienteArqueo
 ) {}

@@ -55,7 +55,7 @@ Si el backend corre en otra dirección, cambia `VITE_API_URL` en el archivo `.en
 | Mis reservas | `/reservas` | lector | `GET /mi/reservas`, `POST /reservas`, `PATCH /reservas/{id}/cancelar` |
 | Ejemplares | `/ejemplares` | personal | `GET /ejemplares`, `POST /libros/{id}/ejemplares`, `PUT /ejemplares/{id}` |
 | Pagos de multas | `/pagos-multa` | personal | `GET /multas`, `POST /multas/{id}/pagar`, `GET /multas/pagos` |
-| Caja | `/caja` | personal | `GET /cajas/actual` (caja abierta, `horario_hoy`, `caja_cerrada_hoy` y `cierre_programado` para la cuenta regresiva), `POST /cajas`, `PUT /cajas/{id}/encargado`, `POST /cajas/{id}/arqueo`, `POST /cajas/{id}/cerrar`, `GET /cajas`, `GET /cajas/{id}`, `GET /cajas/pendientes`, `POST /prestamos/{id}/cobrar`, `POST /prestamos/{id}/anular` |
+| Caja | `/caja` | personal | `GET /cajas/actual` (caja abierta, `horario_hoy`, `caja_cerrada_hoy` y `cierre_programado` para la cuenta regresiva), `POST /cajas`, `PUT /cajas/{id}/encargado`, `POST /cajas/{id}/arqueo`, `POST /cajas/{id}/cerrar`, `POST /cajas/{id}/arqueo-final` (cajas cerradas por horario "sin arqueo": el gerente escribe lo contado en el detalle del Historial), `GET /cajas`, `GET /cajas/{id}`, `GET /cajas/pendientes`, `POST /prestamos/{id}/cobrar`, `POST /prestamos/{id}/anular` |
 | Clientes (Ficha 360) | `/clientes` | gerente | `GET /usuarios`, `GET /crm/clientes/{id}`, `POST /crm/clientes/{id}/notas`, `DELETE /crm/notas/{id}` |
 | Sanciones y bloqueos | `/sanciones` | personal | `GET /sanciones`, `POST /usuarios/{id}/suspender`, `PATCH /sanciones/{id}/levantar` |
 | Avisos | `/avisos` | todos | `GET /notificaciones`, `PATCH .../leida`, `POST /notificaciones`, `GET /notificaciones/todas`, `PUT /configuracion` (interruptores) |

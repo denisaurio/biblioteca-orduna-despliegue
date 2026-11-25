@@ -39,6 +39,12 @@ public class TareasProgramadas {
             log.info("Caja abierta automáticamente por el horario configurado");
             realtimeService.publicarCambio("cajas", "ABRIR_CAJA_AUTOMATICO");
         }
+        // Después de abrir y antes de cerrar: una caja que se abre a menos de 30 minutos de
+        // su cierre recibe el aviso en el mismo minuto.
+        if (cajaService.avisarCierreProximo()) {
+            log.info("Aviso de cierre de caja enviado al encargado");
+            realtimeService.publicarCambio("cajas", "AVISO_CIERRE_CAJA");
+        }
         if (cajaService.cerrarAutomaticoPorHorario()) {
             log.info("Caja cerrada automáticamente por el horario configurado");
             realtimeService.publicarCambio("cajas", "CERRAR_CAJA_AUTOMATICO");
